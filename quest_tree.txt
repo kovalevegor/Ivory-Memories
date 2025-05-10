@@ -1,0 +1,12 @@
+Node 0: Fetch item 0 and bring to knot 27
+  Plan: 
+  Node 1: Obtain item 0
+    Plan: 
+    Node 2: Defeat enemy 2 to get item 0
+      Plan: Move to knot 0; Move to knot 11; Move to knot 4; Move to knot 1; Move to knot 3; Move to knot 5; Move to knot 7; Move to knot 50; Move to knot 34; Defeat enemy 2; 
+      Node 3: Go to knot 27
+        Plan: Move to knot 50; Move to knot 7; Move to knot 5; Move to knot 3; Move to knot 20; Move to knot 9; Move to knot 10; Move to knot 59; Move to knot 19; Move to knot 46; Move to knot 51; Pick up item 0; Move to knot 46; Move to knot 19; Move to knot 59; Move to knot 23; Move to knot 16; Move to knot 15; Move to knot 14; Move to knot 12; Move to knot 27; 
+    Node 4: Pick up item 0 from knot 51
+      Plan: Move to knot 0; Move to knot 11; Move to knot 4; Move to knot 9; Move to knot 10; Move to knot 59; Move to knot 19; Move to knot 46; Move to knot 51; Pick up item 0; 
+      Node 5: Go to knot 27
+        Plan: Move to knot 46; Move to knot 19; Move to knot 59; Move to knot 23; Move to knot 16; Move to knot 15; Move to knot 14; Move to knot 12; Move to knot 27; 

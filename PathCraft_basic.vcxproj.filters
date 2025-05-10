@@ -30,6 +30,9 @@
     <ClInclude Include="SpectralClustering.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Quest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -48,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SpectralClustering.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Quest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

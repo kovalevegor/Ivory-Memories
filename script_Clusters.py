@@ -164,19 +164,24 @@ def plot_animation(knots, segments, spawn_exit_knots=None, asylum_knot=None,
     ax.tick_params(axis='y', colors=text_color, labelsize=font_size)
 
     for start, end in segments:
-        ax.plot([start[0], end[0]], [start[1], end[1]], color=segment_color, linewidth=2, zorder=10)
+        ax.plot([start[0], end[0]], [start[1], end[1]], color=segment_color, linewidth=2, zorder=40)
 
     # Отрисовка выпуклых оболочек для сообществ
     if clusters:
         # Группируем точки по сообществам
         cluster_points = {}
         for knot in knots:
-            knot_tuple = (knot[0], knot[1])
-            cluster = clusters.get(knot_tuple, -1)
-            if cluster >= 0:
-                if cluster not in cluster_points:
-                    cluster_points[cluster] = []
-                cluster_points[cluster].append(knot)
+            matched = False
+            for (x, y), cluster in clusters.items():
+                if np.isclose(knot[0], x, atol=1e-4) and np.isclose(knot[1], y, atol=1e-4):
+                    if cluster not in cluster_points:
+                        cluster_points[cluster] = []
+                    cluster_points[cluster].append(knot)
+                    matched = True
+                    break  # нашли совпадение — дальше не ищем
+            if not matched:
+                # Если точка ни в какой кластер не попала — можно залогировать
+                pass  # или print(f"Point {knot} not matched to any cluster")
         
         print(f"Clusters found: {len(cluster_points)}")
         for cluster, points in cluster_points.items():

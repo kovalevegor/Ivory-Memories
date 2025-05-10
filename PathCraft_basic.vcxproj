@@ -24,6 +24,7 @@
     <ProjectGuid>{06893749-006a-47eb-a379-528cce82ced9}</ProjectGuid>
     <RootNamespace>PathCraftbasic</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>PM&amp;QG</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -134,6 +135,7 @@
     <ClInclude Include="GraphDiameter.h" />
     <ClInclude Include="Knot.h" />
     <ClInclude Include="MinimumSpanningTree.h" />
+    <ClInclude Include="Quest.h" />
     <ClInclude Include="SpectralClustering.h" />
     <ClInclude Include="Triangulation.h" />
   </ItemGroup>
@@ -142,6 +144,7 @@
     <ClCompile Include="Knot.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MinimumSpanningTree.cpp" />
+    <ClCompile Include="Quest.cpp" />
     <ClCompile Include="SpectralClustering.cpp" />
     <ClCompile Include="Triangulation.cpp" />
   </ItemGroup>
