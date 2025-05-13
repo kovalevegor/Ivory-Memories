@@ -1,127 +1,120 @@
 #include "SpectralClustering.h"
-#include <Eigen/Dense>         // Библиотека для работы с матрицами
+#include <Eigen/Dense>
 #include <vector>
-#include <algorithm>           // Для std::shuffle
-#include <random>              // Генерация случайных чисел
-#include <limits>              // Для std::numeric_limits<float>::max()
-#include <cmath>               // Математические функции (например, sqrt, exp)
-#include <numeric>             // Для std::iota
+#include <algorithm>
+#include <random>
+#include <limits>
+#include <cmath>
+#include <numeric>
 
-// Конструктор: инициализирует точки, число кластеров и параметр sigma
+
 SpectralClustering::SpectralClustering(const std::vector<Knot>& pts, int numClusters, float scale)
-    : points(pts), k(numClusters), sigma(scale) {}
+    : points(pts), k(numClusters), sigma(scale) {
+}
 
-// Основной метод кластеризации
 void SpectralClustering::cluster() {
     int N = points.size();
     if (N < k) {
-        throw std::invalid_argument("More clusters than points"); // Проверка на корректность
+        throw std::invalid_argument("More clusters than points");
     }
 
-    // 1. Построение матрицы сходства S
-    Eigen::MatrixXf S(N, N); // Матрица размера NxN
+    // 1.
+    Eigen::MatrixXf S(N, N);
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            float dx = points[i].x - points[j].x; // Разница по x
-            float dy = points[i].y - points[j].y; // Разница по y
-            float dist2 = dx * dx + dy * dy;      // Квадрат расстояния
-            // Гауссово ядро: преобразует расстояние в меру сходства (0..1)
+            float dx = points[i].x - points[j].x;
+            float dy = points[i].y - points[j].y;
+            float dist2 = dx * dx + dy * dy;
             S(i, j) = std::exp(-dist2 / (2 * sigma * sigma));
         }
     }
 
-    // 2. Построение матрицы Лапласа L
-    Eigen::VectorXf D(N); // Вектор степеней (суммы строк матрицы S)
+    // 2. 
+    Eigen::VectorXf D(N);
     for (int i = 0; i < N; i++) {
-        D(i) = S.row(i).sum(); // Сумма элементов в строке i
+        D(i) = S.row(i).sum(); 
     }
 
-    Eigen::VectorXf D_inv_sqrt(N); // Вектор обратных квадратных корней степеней
+    Eigen::VectorXf D_inv_sqrt(N); 
     for (int i = 0; i < N; i++) {
         if (D(i) > 0) {
-            D_inv_sqrt(i) = 1.0f / std::sqrt(D(i)); // Обратный квадратный корень
+            D_inv_sqrt(i) = 1.0f / std::sqrt(D(i)); 
         }
         else {
-            D_inv_sqrt(i) = 0.0f; // Если степень нулевая
+            D_inv_sqrt(i) = 0.0f; 
         }
     }
 
-    // Нормализованная матрица Лапласа: L = I - D^{-1/2} * S * D^{-1/2}
-    auto D_inv_sqrt_diag = D_inv_sqrt.asDiagonal(); // Преобразование вектора в диагональную матрицу
+    auto D_inv_sqrt_diag = D_inv_sqrt.asDiagonal();
     Eigen::MatrixXf S_tilde = D_inv_sqrt_diag * S * D_inv_sqrt_diag;
     Eigen::MatrixXf L = Eigen::MatrixXf::Identity(N, N) - S_tilde;
 
-    // 3. Вычисление собственных векторов матрицы L
+    // 3. 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> es(L);
     if (es.info() != Eigen::Success) {
-        throw std::runtime_error("Eigenvalue decomposition failed"); // Ошибка разложения
+        throw std::runtime_error("Eigenvalue decomposition failed");
     }
-    // Берем первые k собственных векторов (игнорируя первый, соответствующий нулевому собственному значению)
+
     Eigen::MatrixXf U = es.eigenvectors().block(0, 1, N, k);
 
-    // 4. Нормализация строк матрицы U (приведение к единичной длине)
+    // 4. 
     for (int i = 0; i < N; i++) {
-        float norm = U.row(i).norm(); // Длина строки
+        float norm = U.row(i).norm();
         if (norm > 0) {
-            U.row(i) /= norm; // Деление на длину для нормализации
+            U.row(i) /= norm;
         }
         else {
-            U.row(i).setZero(); // Если строка нулевая
+            U.row(i).setZero();
         }
     }
 
-    // 5. Применение k-means к строкам матрицы U
-    // Инициализация центроидов случайными точками из U
+    // 5. 
     std::vector<int> indices(N);
-    std::iota(indices.begin(), indices.end(), 0); // Заполнение 0, 1, 2, ..., N-1
+    std::iota(indices.begin(), indices.end(), 0); 
     std::random_device rd;
     std::mt19937 g(rd());
-    std::shuffle(indices.begin(), indices.end(), g); // Перемешивание индексов
+    std::shuffle(indices.begin(), indices.end(), g); 
 
-    Eigen::MatrixXf centroids(k, k); // Центроиды в пространстве R^k
+    Eigen::MatrixXf centroids(k, k); 
     for (int i = 0; i < k; i++) {
-        centroids.row(i) = U.row(indices[i]); // Выбор случайных строк из U
+        centroids.row(i) = U.row(indices[i]);
     }
 
-    std::vector<int> assignments(N, -1); // Метки кластеров для каждой точки
-    int maxIter = 30; // Максимальное число итераций k-means
+    std::vector<int> assignments(N, -1);
+    int maxIter = 30;
 
     for (int iter = 0; iter < maxIter; iter++) {
-        // Назначение точек ближайшим центроидам
         for (int i = 0; i < N; i++) {
             float minDist = std::numeric_limits<float>::max();
             int bestJ = -1;
             for (int j = 0; j < k; j++) {
-                // Вычисление расстояния между строкой U[i] и центроидом j
                 float dist = (U.row(i) - centroids.row(j)).squaredNorm();
                 if (dist < minDist) {
                     minDist = dist;
                     bestJ = j;
                 }
             }
-            assignments[i] = bestJ; // Назначение точки i кластеру bestJ
+            assignments[i] = bestJ; 
         }
 
-        // Обновление центроидов
-        std::vector<Eigen::VectorXf> sumK(k, Eigen::VectorXf::Zero(k)); // Суммы векторов кластеров
-        std::vector<int> countK(k, 0); // Число точек в кластерах
+        std::vector<Eigen::VectorXf> sumK(k, Eigen::VectorXf::Zero(k));
+        std::vector<int> countK(k, 0); 
         for (int i = 0; i < N; i++) {
             int j = assignments[i];
-            sumK[j] += U.row(i).transpose(); // Добавление вектора к сумме кластера
+            sumK[j] += U.row(i).transpose();
             countK[j]++;
         }
         for (int j = 0; j < k; j++) {
             if (countK[j] > 0) {
-                sumK[j] /= countK[j]; // Усреднение
-                centroids.row(j) = sumK[j].transpose(); // Обновление центроида
+                sumK[j] /= countK[j]; 
+                centroids.row(j) = sumK[j].transpose(); 
             }
         }
     }
 
-    clusters = assignments; // Сохранение результата
+    clusters = assignments; 
 }
 
-// Возвращает метки кластеров
 const std::vector<int>& SpectralClustering::getClusters() const {
     return clusters;
 }
