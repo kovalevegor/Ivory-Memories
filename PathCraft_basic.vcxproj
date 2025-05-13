@@ -106,7 +106,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>Z:\Downloads\eigen-3.4.0\eigen-3.4.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Z:\Downloads\eigen-3.4.0\eigen-3.4.0;X:\DevResources\C++\nlohmannjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -122,7 +122,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>Z:\Downloads\eigen-3.4.0\eigen-3.4.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Z:\Downloads\eigen-3.4.0\eigen-3.4.0;X:\DevResources\C++\nlohmannjson;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,10 +132,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\..\..\DevResources\C++\json.hpp" />
     <ClInclude Include="GraphDiameter.h" />
     <ClInclude Include="Knot.h" />
     <ClInclude Include="MinimumSpanningTree.h" />
-    <ClInclude Include="Quest.h" />
+    <ClInclude Include="QuestPlacement.h" />
     <ClInclude Include="SpectralClustering.h" />
     <ClInclude Include="Triangulation.h" />
   </ItemGroup>
@@ -144,7 +145,7 @@
     <ClCompile Include="Knot.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MinimumSpanningTree.cpp" />
-    <ClCompile Include="Quest.cpp" />
+    <ClCompile Include="QuestPlacement.cpp" />
     <ClCompile Include="SpectralClustering.cpp" />
     <ClCompile Include="Triangulation.cpp" />
   </ItemGroup>

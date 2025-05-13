@@ -1,0 +1,4 @@
+Tag: heron_battle, Node: 29 (172.298, 58.2242)
+Tag: quest_giver_cobra, Node: 3 (160.213, 74.597)
+Tag: quest_giver_heron, Node: 28 (171.899, 38.5233)
+Tag: spawn, Node: 73 (174.879, 15.0944)

@@ -1,25 +1,23 @@
 #include "GraphDiameter.h"
-#include <stdexcept> // Для обработки ошибок
+#include <stdexcept> 
 
 namespace GraphAnalysis {
-    // Реализация построения списка смежности
     std::unordered_map<Knot, std::vector<Knot>> buildAdjacencyList(const std::vector<Edge>& edges) {
         std::unordered_map<Knot, std::vector<Knot>> adjList;
         for (const auto& edge : edges) {
             adjList[edge.first].push_back(edge.second);
-            adjList[edge.second].push_back(edge.first); // Граф неориентированный
+            adjList[edge.second].push_back(edge.first);
         }
         return adjList;
     }
 
-    // Реализация BFS
     std::unordered_map<Knot, int> bfsDistances(const Knot& start,
         const std::unordered_map<Knot, std::vector<Knot>>& adjList) {
         std::unordered_map<Knot, int> distances;
         std::queue<Knot> q;
 
         if (adjList.empty())
-            throw std::invalid_argument("Список смежности пуст!");
+            throw std::invalid_argument("Adjacency list is empty!!");
 
         distances[start] = 0;
         q.push(start);
@@ -39,7 +37,6 @@ namespace GraphAnalysis {
         return distances;
     }
 
-    // Реализация поиска самой удалённой вершины
     std::pair<Knot, int> findFurthestNode(const Knot& start,
         const std::unordered_map<Knot, std::vector<Knot>>& adjList) {
         auto distances = bfsDistances(start, adjList);
@@ -56,24 +53,17 @@ namespace GraphAnalysis {
         return { furthestNode, maxDist };
     }
 
-    // Реализация поиска диаметра графа
     std::pair<Knot, Knot> findGraphDiameter(const std::unordered_map<Knot, std::vector<Knot>>& adjList) {
         if (adjList.empty())
-            return {}; // Возвращаем пустую пару для пустого графа
+            return {}; 
 
-        // Шаг 1: Выбираем произвольную вершину
         Knot A = adjList.begin()->first;
-
-        // Шаг 2: Находим самую удалённую вершину B от A
         auto [B, _] = findFurthestNode(A, adjList);
-
-        // Шаг 3: Находим самую удалённую вершину C от B
         auto [C, maxDist] = findFurthestNode(B, adjList);
 
         return { B, C };
     }
 
-    // Расчет эксцентриситетов для всех вершин
     std::unordered_map<Knot, int> calculateEccentricities(const std::unordered_map<Knot, std::vector<Knot>>& adjList) {
         std::unordered_map<Knot, int> eccentricities;
 
@@ -89,10 +79,9 @@ namespace GraphAnalysis {
         return eccentricities;
     }
 
-    // Поиск центра графа
     Knot findGraphCenter(const std::unordered_map<Knot, std::vector<Knot>>& adjList) {
         if (adjList.empty()) {
-            throw std::invalid_argument("Граф пуст!");
+            throw std::invalid_argument("Adjacency list is empty!");
         }
 
         auto eccentricities = calculateEccentricities(adjList);

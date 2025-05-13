@@ -164,7 +164,7 @@ def plot_animation(knots, segments, spawn_exit_knots=None, asylum_knot=None,
     ax.tick_params(axis='y', colors=text_color, labelsize=font_size)
 
     for start, end in segments:
-        ax.plot([start[0], end[0]], [start[1], end[1]], color=segment_color, linewidth=2, zorder=40)
+        ax.plot([start[0], end[0]], [start[1], end[1]], color=segment_color, linewidth=2, zorder=10)
 
     # Отрисовка выпуклых оболочек для сообществ
     if clusters:
@@ -204,10 +204,10 @@ def plot_animation(knots, segments, spawn_exit_knots=None, asylum_knot=None,
     ax.scatter(knots[:, 0], knots[:, 1], s=knot_size, color=knot_color, zorder=20)
     if spawn_exit_knots is not None:
         ax.scatter(spawn_exit_knots[:, 0], spawn_exit_knots[:, 1], s=knot_size * 1.5,
-                   color=spawn_exit_knots_color, zorder=-1)
+                   color=spawn_exit_knots_color, zorder=21)
     if asylum_knot is not None and len(asylum_knot) > 0:
         ax.scatter(asylum_knot[:, 0], asylum_knot[:, 1],
-                   s=knot_size * 2, color=asylum_knot_color, marker='D', zorder=-1)
+                   s=knot_size * 2, color=asylum_knot_color, marker='D', zorder=22)
 
     plt.savefig("clusters.png", dpi=300, bbox_inches='tight', pad_inches=0.5)
     plt.close()

@@ -30,7 +30,10 @@
     <ClInclude Include="SpectralClustering.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Quest.h">
+    <ClInclude Include="..\..\..\..\..\..\..\DevResources\C++\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="QuestPlacement.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -53,7 +56,7 @@
     <ClCompile Include="SpectralClustering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Quest.cpp">
+    <ClCompile Include="QuestPlacement.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

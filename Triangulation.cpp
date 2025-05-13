@@ -66,13 +66,13 @@ std::vector<Edge> getEdgesFromTriangles(const std::vector<Triangle>& triangles) 
         };
         for (const auto& edge : edges) {
             auto key = std::make_pair(edge.first, edge.second);
-            edge_map[key] = !edge_map[key]; // Инвертируем флаг при каждом добавлении
+            edge_map[key] = !edge_map[key]; 
         }
     }
 
     std::vector<Edge> edges;
     for (const auto& pair : edge_map) {
-        if (pair.second) { // Оставляем только уникальные ребра
+        if (pair.second) { 
             edges.emplace_back(pair.first.first, pair.first.second);
         }
     }
@@ -137,19 +137,16 @@ std::vector<Triangle> delaunayTriangulation(const std::vector<Knot>& knots) {
             }
         }
 
-        // Удаляем плохие треугольники
         triangles.erase(std::remove_if(triangles.begin(), triangles.end(),
             [&badTriangles](const Triangle& t) {
                 return std::find(badTriangles.begin(), badTriangles.end(), t) != badTriangles.end();
             }), triangles.end());
 
-        // Создаем новые треугольники из полигона
         for (const auto& edge : polygon) {
             triangles.push_back({ edge.first, edge.second, knot });
         }
     }
 
-    // Удаляем треугольники, связанные с вершинами супертреугольника
     triangles.erase(std::remove_if(triangles.begin(), triangles.end(),
         [&superTriangle](const Triangle& t) {
             return t.knot_1 == superTriangle.knot_1 || t.knot_1 == superTriangle.knot_2 || t.knot_1 == superTriangle.knot_3 ||
@@ -180,4 +177,3 @@ std::vector<Edge> getUniqueEdges(const std::vector<Triangle>& triangles) {
 
     return std::vector<Edge>(unique_edges.begin(), unique_edges.end());
 }
-

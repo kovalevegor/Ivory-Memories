@@ -29,7 +29,7 @@ public:
 
 std::vector<EdgeWithWeight> calculateMST(const std::vector<Edge>& edges);
 std::vector<Edge> addRandomEdges(
-    const std::vector<Edge>& mst_edges,  // Принимает Edge, а не EdgeWithWeight
+    const std::vector<Edge>& mst_edges,
     const std::vector<Edge>& all_edges,
     float probability
 );

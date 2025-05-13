@@ -67,7 +67,6 @@ std::vector<Knot> poissonDiskSampling(float width, float height, double radius, 
     std::uniform_real_distribution<float> dist_x(0.0f, width);
     std::uniform_real_distribution<float> dist_y(0.0f, height);
 
-    // Начальная точка
     Knot k0(dist_x(gen), dist_y(gen));
     insertKnot(grid, k0, cellsize);
     knots.push_back(k0);

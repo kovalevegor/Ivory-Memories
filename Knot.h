@@ -8,7 +8,7 @@
 #include <algorithm>
 
 struct Knot {
-    float x, y; 
+    float x, y;
     Knot() : x(-1.0f), y(-1.0f) {}
     Knot(float _x, float _y) : x(_x), y(_y) {}
 
@@ -20,7 +20,7 @@ using Edge = std::pair<Knot, Knot>;
 bool operator<(const Edge& a, const Edge& b);
 bool operator==(const Edge& a, const Edge& b);
 
-namespace std { // хеш-функция для Knot (необходима для DSU)
+namespace std { 
     template<> struct hash<Knot> {
         size_t operator()(const Knot& k) const {
             return hash<float>()(k.x) ^ (hash<float>()(k.y) << 1);
