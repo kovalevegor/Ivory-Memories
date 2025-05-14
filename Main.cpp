@@ -15,8 +15,9 @@
 using json = nlohmann::json;
 
 int find_knot_id(const Knot& k, const std::vector<Knot>& knots) {
+    const float EPSILON = 1e-5;
     for (size_t i = 0; i < knots.size(); ++i) {
-        if (k.x == knots[i].x && k.y == knots[i].y) return i;
+        if (std::abs(k.x - knots[i].x) < EPSILON && std::abs(k.y - knots[i].y) < EPSILON) return i;
     }
     return -1;
 }
@@ -38,8 +39,9 @@ int main() {
 
     knots = poissonDiskSampling(width, height, radius, k);
     for (const auto& knot : knots) {
-        std::cout << "(" << knot.x << ", " << knot.y << ")\n";
+        //std::cout << "(" << knot.x << ", " << knot.y << ")\n";
     }
+    std::cout << "Number of knots: " << knots.size() << std::endl;
 
     {
         std::ofstream out("knots.txt");
@@ -50,12 +52,12 @@ int main() {
 
     std::vector<Triangle> triangles = delaunayTriangulation(knots);
     std::cout << "Number of triangles: " << triangles.size() << std::endl;
-    for (const auto& triangle : triangles) {
+    /*for (const auto& triangle : triangles) {
         std::cout << "Triangle: ("
             << triangle.knot_1.x << ", " << triangle.knot_1.y << "), ("
             << triangle.knot_2.x << ", " << triangle.knot_2.y << "), ("
             << triangle.knot_3.x << ", " << triangle.knot_3.y << ")\n";
-    }
+    }*/
 
     {
         std::ofstream out("triangles.txt");
@@ -113,7 +115,6 @@ int main() {
         out << spawn.x << " " << spawn.y << "\n"
             << exit.x << " " << exit.y << "\n";
     }
-
     // Поиск центра графа (убежища)
     Knot center;
     try {
@@ -146,7 +147,7 @@ int main() {
     }
 
     // Кластеризация
-    SpectralClustering clustering(knots, 4, 10.0f);
+    SpectralClustering clustering(knots, 5, 10.0f);
     std::vector<int> cluster_assignments;
 
     try {
@@ -157,7 +158,7 @@ int main() {
         for (size_t i = 0; i < knots.size(); ++i) {
             std::string line = "Knot (" + std::to_string(knots[i].x) + ", " + std::to_string(knots[i].y) +
                 ") -> Cluster " + std::to_string(cluster_assignments[i]);
-            std::cout << line << std::endl;
+            //std::cout << line << std::endl;
             clustering_file << line << "\n";
         }
         clustering_file.close();
@@ -170,6 +171,13 @@ int main() {
     }
 
     // Распределение квестов
+    // Найти ID узла spawn
+    int spawn_id = find_knot_id(spawn, knots);
+    if (spawn_id == -1) {
+        std::cerr << "Error: Spawn knot not found in knots list" << std::endl;
+        return 1;
+    }
+
     std::ifstream domain_file("DomainDatabase.json");
     json domain_data;
     domain_file >> domain_data;
@@ -184,29 +192,39 @@ int main() {
         }
     }
 
-    // Определение желаемых дистанций и ограничений
+    // Желаемые дистанции
     std::map<std::string, int> desired_distances = {
         {"spawn", 0},
         {"quest_giver_heron", 5},
         {"quest_giver_cobra", 10},
-        {"heron_battle", 8}
-    };
-    std::vector<std::tuple<std::string, std::string, int>> min_distance_constraints = {
-        {"quest_giver_heron", "quest_giver_cobra", 5},
-        {"quest_giver_heron", "heron_battle", 3},
-        {"quest_giver_cobra", "heron_battle", 3}
+        {"heron_battle", 8},
+        {"cobra_hunters", 12}
     };
 
-    // Найти ID узла spawn
-    int spawn_id = find_knot_id(spawn, knots);
-    if (spawn_id == -1) {
-        std::cerr << "Error: Spawn knot not found in knots list" << std::endl;
-        return 1;
+    // Добавление желаемых расстояний из constraints
+    for (const auto& constraint : domain_data["constraints"]) {
+        if (constraint.contains("desired")) {
+            std::string tag = constraint["tag2"].get<std::string>();
+            int desired = constraint["desired"].get<int>();
+            desired_distances[tag] = desired;
+        }
+    }
+
+    // Минимальные расстояния
+    std::vector<std::tuple<std::string, std::string, int>> min_distance_constraints;
+    for (const auto& constraint : domain_data["constraints"]) {
+        if (constraint["type"] == "distance" && constraint.contains("min")) {
+            min_distance_constraints.emplace_back(
+                constraint["tag1"].get<std::string>(),
+                constraint["tag2"].get<std::string>(),
+                constraint["min"].get<int>()
+            );
+        }
     }
 
     // Запуск генетического алгоритма
-    QuestPlacement quest_placement(knots, adjacencyList, tag_list, desired_distances, min_distance_constraints);
-    auto tag_assignments = quest_placement.run_genetic_algorithm(spawn_id, rng);
+    QuestPlacement quest_placement(knots, adjacencyList, tag_list, desired_distances, min_distance_constraints, spawn_id);
+    auto tag_assignments = quest_placement.run_genetic_algorithm(rng);
 
     // Сохранение назначений
     {

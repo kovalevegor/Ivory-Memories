@@ -4,48 +4,66 @@
       "type": "character",
       "id": "Hero",
       "properties": {
-        "can_form_caravan": true,
-        "can_fight": true
+        "health": 100,
+        "inventory": []
       }
     },
     {
       "type": "character",
       "id": "Heron",
       "properties": {
-        "needs_food": true,
-        "feed_interval": 0.5,
-        "max_hunger": 3
+        "hostile": false,
+        "quest_giver": true
       }
     },
     {
       "type": "character",
       "id": "Cobra",
       "properties": {
-        "needs_food": true,
-        "feed_interval": 3,
-        "max_hunger": 3,
-        "edible_by_heron": true
+        "hostile": false,
+        "quest_giver": true
       }
     },
     {
       "type": "character",
-      "id": "Elephant",
+      "id": "Wolf1",
       "properties": {
-        "needs_food": true,
-        "feed_interval": 1,
-        "max_hunger": 3
+        "hostile": true
+      }
+    },
+    {
+      "type": "character",
+      "id": "Wolf2",
+      "properties": {
+        "hostile": true
+      }
+    },
+    {
+      "type": "character",
+      "id": "Wolf3",
+      "properties": {
+        "hostile": true
+      }
+    },
+    {
+      "type": "character",
+      "id": "AlphaWolf",
+      "properties": {
+        "hostile": true,
+        "leader": true
       }
     },
     {
       "type": "item",
-      "id": "food",
+      "id": "TravelerBoots",
       "properties": {
-        "edible": true
+        "type": "artifact",
+        "effect": "increase_speed"
       }
     },
     {
       "type": "knot",
-      "id": "spawn_knot",
+      "id": "spawn",
       "properties": {
         "tags": [ "spawn" ]
       }
@@ -59,6 +77,13 @@
     },
     {
       "type": "knot",
+      "id": "heron_battle",
+      "properties": {
+        "tags": [ "heron_battle" ]
+      }
+    },
+    {
+      "type": "knot",
       "id": "quest_giver_cobra",
       "properties": {
         "tags": [ "quest_giver_cobra" ]
@@ -66,141 +91,143 @@
     },
     {
       "type": "knot",
-      "id": "heron_battle_zone",
+      "id": "cobra_hunters_1",
       "properties": {
-        "tags": [ "heron_battle" ]
+        "tags": [ "cobra_hunters" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "cobra_hunters_2",
+      "properties": {
+        "tags": [ "cobra_hunters" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "cobra_hunters_3",
+      "properties": {
+        "tags": [ "cobra_hunters" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "wolf_attack_1",
+      "properties": {
+        "tags": [ "wolf_attack_1" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "wolf_attack_2",
+      "properties": {
+        "tags": [ "wolf_attack_2" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "wolf_attack_3",
+      "properties": {
+        "tags": [ "wolf_attack_3" ]
+      }
+    },
+    {
+      "type": "knot",
+      "id": "wolf_attack_4",
+      "properties": {
+        "tags": [ "wolf_attack_4" ]
       }
     }
   ],
   "facts": [
-    "at(Hero, spawn_knot)",
+    "at(Hero, spawn)",
+    "alive(Hero)",
     "at(Heron, quest_giver_heron)",
     "alive(Heron)",
+    "!ally(Hero, Heron)",
     "at(Cobra, quest_giver_cobra)",
     "alive(Cobra)",
-    "at(Elephant, spawn_knot)",
-    "alive(Elephant)",
-    "at(food, spawn_knot)",
-    "!ally(Hero, Heron)",
     "!ally(Hero, Cobra)",
-    "!ally(Hero, Elephant)",
-    "hunger(Heron, 0)",
-    "hunger(Cobra, 0)",
-    "hunger(Elephant, 0)",
-    "days_passed(0)"
+    "!has(Hero, TravelerBoots)",
+    "at(Wolf1, wolf_attack_1)",
+    "alive(Wolf1)",
+    "at(Wolf2, wolf_attack_2)",
+    "alive(Wolf2)",
+    "at(Wolf3, wolf_attack_3)",
+    "alive(Wolf3)",
+    "at(AlphaWolf, wolf_attack_4)",
+    "alive(AlphaWolf)"
   ],
   "actions": [
     {
-      "name": "accept_heron_into_caravan",
-      "preconditions": [ "at(Hero, quest_giver_heron)", "at(Heron, quest_giver_heron)", "!ally(Hero, Heron)" ],
-      "effects": [ "ally(Hero, Heron)", "in_caravan(Heron)" ],
+      "name": "accept_heron_quest",
+      "preconditions": [ "at(Hero, quest_giver_heron)", "!ally(Hero, Heron)" ],
+      "effects": [ "ally(Hero, Heron)", "start_heron_quest" ],
       "tension": 2,
       "time_cost": 0.05
     },
     {
-      "name": "leave_heron",
-      "preconditions": [ "at(Hero, quest_giver_heron)", "at(Heron, quest_giver_heron)" ],
-      "effects": [],
-      "tension": 0,
-      "time_cost": 0.05
-    },
-    {
-      "name": "feed_heron",
-      "preconditions": [ "ally(Hero, Heron)", "has(Hero, food)", "hunger(Heron, ?n)" ],
-      "effects": [ "!has(Hero, food)", "hunger(Heron, 0)" ],
-      "tension": 1,
-      "time_cost": 0.05
-    },
-    {
-      "name": "do_not_feed_heron",
-      "preconditions": [ "ally(Hero, Heron)", "hunger(Heron, ?n)" ],
-      "effects": [ "hunger(Heron, ?n + 1)" ],
-      "tension": 2,
-      "time_cost": 0.05
-    },
-    {
-      "name": "heron_attacks",
-      "preconditions": [ "ally(Hero, Heron)", "hunger(Heron, 3)" ],
-      "effects": [ "battle(Hero, Heron)", "!ally(Hero, Heron)", "!in_caravan(Heron)" ],
-      "tension": 4,
-      "time_cost": 0.1
-    },
-    {
-      "name": "feed_cobra",
-      "preconditions": [ "ally(Hero, Cobra)", "has(Hero, food)", "hunger(Cobra, ?n)" ],
-      "effects": [ "!has(Hero, food)", "hunger(Cobra, 0)" ],
-      "tension": 1,
-      "time_cost": 0.05
-    },
-    {
-      "name": "do_not_feed_cobra",
-      "preconditions": [ "ally(Hero, Cobra)", "hunger(Cobra, ?n)" ],
-      "effects": [ "hunger(Cobra, ?n + 1)" ],
-      "tension": 2,
-      "time_cost": 0.05
-    },
-    {
-      "name": "cobra_attacks",
-      "preconditions": [ "ally(Hero, Cobra)", "hunger(Cobra, 3)" ],
-      "effects": [ "battle(Hero, Cobra)", "!ally(Hero, Cobra)", "!in_caravan(Cobra)" ],
-      "tension": 4,
-      "time_cost": 0.1
-    },
-    {
-      "name": "feed_elephant",
-      "preconditions": [ "ally(Hero, Elephant)", "has(Hero, food)", "hunger(Elephant, ?n)" ],
-      "effects": [ "!has(Hero, food)", "hunger(Elephant, 0)" ],
-      "tension": 1,
-      "time_cost": 0.05
-    },
-    {
-      "name": "do_not_feed_elephant",
-      "preconditions": [ "ally(Hero, Elephant)", "hunger(Elephant, ?n)" ],
-      "effects": [ "hunger(Elephant, ?n + 1)" ],
-      "tension": 2,
-      "time_cost": 0.05
-    },
-    {
-      "name": "elephant_attacks",
-      "preconditions": [ "ally(Hero, Elephant)", "hunger(Elephant, 3)" ],
-      "effects": [ "battle(Hero, Elephant)", "!ally(Hero, Elephant)", "!in_caravan(Elephant)" ],
+      "name": "fight_heron",
+      "preconditions": [ "at(Hero, heron_battle)", "ally(Hero, Heron)" ],
+      "effects": [ "battle(Hero, Heron)", "!ally(Hero, Heron)" ],
       "tension": 5,
       "time_cost": 0.1
     },
     {
-      "name": "battle_herons",
-      "preconditions": [ "at(Hero, heron_battle_zone)", "!in_caravan(Heron)" ],
-      "effects": [ "battle(Hero, heron_enemies)" ],
-      "tension": 3,
-      "time_cost": 0.1
-    },
-    {
-      "name": "allow_heron_eat_cobra",
-      "preconditions": [ "at(Hero, quest_giver_cobra)", "at(Cobra, quest_giver_cobra)", "in_caravan(Heron)", "alive(Cobra)" ],
-      "effects": [ "!alive(Cobra)", "schedule_heron_attack(4)" ],
-      "tension": 3,
-      "time_cost": 0.05
-    },
-    {
       "name": "accept_cobra_into_caravan",
-      "preconditions": [ "at(Hero, quest_giver_cobra)", "at(Cobra, quest_giver_cobra)", "!in_caravan(Heron)", "alive(Cobra)" ],
+      "preconditions": [ "at(Hero, quest_giver_cobra)", "at(Cobra, quest_giver_cobra)", "!ally(Hero, Cobra)" ],
       "effects": [ "ally(Hero, Cobra)", "in_caravan(Cobra)" ],
       "tension": 2,
       "time_cost": 0.05
     },
     {
-      "name": "complete_cobra_quest",
-      "preconditions": [ "ally(Hero, Cobra)", "quest_completed(cobra_quest)" ],
-      "effects": [ "battle(Hero, Heron)", "!ally(Hero, Heron)", "!in_caravan(Heron)" ],
+      "name": "refuse_cobra",
+      "preconditions": [ "at(Hero, quest_giver_cobra)", "at(Cobra, quest_giver_cobra)", "!ally(Hero, Cobra)" ],
+      "effects": [ "battle(Hero, Cobra)", "!alive(Cobra)" ],
       "tension": 4,
       "time_cost": 0.1
     },
     {
-      "name": "move_to_knot",
-      "preconditions": [ "at(Hero, ?from)", "path(?from, ?to)" ],
-      "effects": [ "!at(Hero, ?from)", "at(Hero, ?to)" ],
-      "tension": 0,
+      "name": "fight_cobra_hunters",
+      "preconditions": [ "at(Hero, ?knot)", "in_caravan(Cobra)", "has_tag(?knot, cobra_hunters)" ],
+      "effects": [ "battle(Hero, CobraHunters)" ],
+      "tension": 5,
       "time_cost": 0.1
+    },
+    {
+      "name": "get_traveler_boots",
+      "preconditions": [ "at(Hero, ?knot)", "!alive(Cobra)", "!has(Hero, TravelerBoots)", "has_tag(?knot, cobra_hunters)" ],
+      "effects": [ "has(Hero, TravelerBoots)" ],
+      "tension": 3,
+      "time_cost": 0.05
+    },
+    {
+      "name": "fight_one_wolf",
+      "preconditions": [ "at(Hero, wolf_attack_1)" ],
+      "effects": [ "battle(Hero, Wolf1)", "!alive(Wolf1)" ],
+      "tension": 3,
+      "time_cost": 0.1
+    },
+    {
+      "name": "fight_two_wolves",
+      "preconditions": [ "at(Hero, wolf_attack_2)" ],
+      "effects": [ "battle(Hero, Wolf2)", "!alive(Wolf2)" ],
+      "tension": 4,
+      "time_cost": 0.15
+    },
+    {
+      "name": "fight_three_wolves",
+      "preconditions": [ "at(Hero, wolf_attack_3)" ],
+      "effects": [ "battle(Hero, Wolf3)", "!alive(Wolf3)" ],
+      "tension": 5,
+      "time_cost": 0.2
+    },
+    {
+      "name": "fight_alpha_wolf_pack",
+      "preconditions": [ "at(Hero, wolf_attack_4)" ],
+      "effects": [ "battle(Hero, AlphaWolf)", "!alive(AlphaWolf)" ],
+      "tension": 6,
+      "time_cost": 0.25
     }
   ],
   "quests": [
@@ -213,95 +240,20 @@
           "description": "Meeting the heron",
           "choices": [
             {
-              "text": "Accept heron into caravan",
-              "action": "accept_heron_into_caravan",
+              "text": "Accept heron quest",
+              "action": "accept_heron_quest",
               "next_stage": 1
-            },
-            {
-              "text": "Leave heron",
-              "action": "leave_heron",
-              "next_stage": -1
             }
           ]
         },
         {
           "id": 1,
-          "condition": "ally(Hero, Heron) && days_passed(0.5)",
-          "description": "Feed the heron",
+          "condition": "at(Hero, heron_battle) && ally(Hero, Heron)",
+          "description": "Fight alongside heron",
           "choices": [
             {
-              "text": "Feed heron",
-              "action": "feed_heron",
-              "next_stage": 1
-            },
-            {
-              "text": "Do not feed",
-              "action": "do_not_feed_heron",
-              "next_stage": 2
-            }
-          ]
-        },
-        {
-          "id": 2,
-          "condition": "hunger(Heron, 3)",
-          "description": "Heron attacks due to hunger",
-          "choices": [
-            {
-              "text": "Fight the heron",
-              "action": "heron_attacks",
-              "next_stage": -1
-            }
-          ]
-        },
-        {
-          "id": 3,
-          "condition": "at(Hero, heron_battle_zone) && in_caravan(Heron)",
-          "description": "Battle with heron enemies (heron in caravan does not fight)",
-          "choices": [
-            {
-              "text": "Fight",
-              "action": "battle_herons",
-              "next_stage": 1
-            }
-          ]
-        },
-        {
-          "id": 4,
-          "condition": "at(Hero, quest_giver_cobra) && in_caravan(Heron)",
-          "description": "Meeting the cobra",
-          "choices": [
-            {
-              "text": "Allow heron to eat cobra",
-              "action": "allow_heron_eat_cobra",
-              "next_stage": 5
-            },
-            {
-              "text": "Accept cobra into caravan",
-              "action": "accept_cobra_into_caravan",
-              "next_stage": 1
-            }
-          ]
-        },
-        {
-          "id": 5,
-          "condition": "scheduled_heron_attack",
-          "description": "Heron attacks after eating cobra",
-          "choices": [
-            {
-              "text": "Fight the heron",
-              "action": "heron_attacks",
-              "next_stage": -1
-            }
-          ]
-        },
-        {
-          "id": 6,
-          "condition": "quest_completed(cobra_quest) && in_caravan(Heron)",
-          "description": "Heron attacks after cobra quest completion",
-          "choices": [
-            {
-              "text": "Fight the heron",
-              "action": "complete_cobra_quest",
+              "text": "Fight heron",
+              "action": "fight_heron",
               "next_stage": -1
             }
           ]
@@ -313,41 +265,41 @@
       "stages": [
         {
           "id": 0,
-          "condition": "at(Hero, quest_giver_cobra) && !in_caravan(Heron)",
+          "condition": "at(Hero, quest_giver_cobra)",
           "description": "Meeting the cobra",
           "choices": [
             {
               "text": "Accept cobra into caravan",
               "action": "accept_cobra_into_caravan",
               "next_stage": 1
-            }
-          ]
-        },
-        {
-          "id": 1,
-          "condition": "ally(Hero, Cobra) && days_passed(3)",
-          "description": "Feed the cobra",
-          "choices": [
-            {
-              "text": "Feed cobra",
-              "action": "feed_cobra",
-              "next_stage": 1
             },
             {
-              "text": "Do not feed",
-              "action": "do_not_feed_cobra",
+              "text": "Refuse and fight cobra",
+              "action": "refuse_cobra",
               "next_stage": 2
             }
           ]
         },
         {
-          "id": 2,
-          "condition": "hunger(Cobra, 3)",
-          "description": "Cobra attacks due to hunger",
+          "id": 1,
+          "condition": "at(Hero, ?knot) && in_caravan(Cobra) && has_tag(?knot, cobra_hunters)",
+          "description": "Encounter with cobra hunters",
           "choices": [
             {
-              "text": "Fight the cobra",
-              "action": "cobra_attacks",
+              "text": "Fight the hunters",
+              "action": "fight_cobra_hunters",
+              "next_stage": -1
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "condition": "at(Hero, ?knot) && !alive(Cobra) && has_tag(?knot, cobra_hunters) && !has(Hero, TravelerBoots)",
+          "description": "Find traveler boots after defeating cobra",
+          "choices": [
+            {
+              "text": "Take traveler boots",
+              "action": "get_traveler_boots",
               "next_stage": -1
             }
           ]
@@ -355,50 +307,52 @@
       ]
     },
     {
-      "name": "Elephant Quest",
+      "name": "Wolf Quest",
       "stages": [
         {
           "id": 0,
-          "condition": "at(Hero, spawn_knot)",
-          "description": "Meeting the elephant",
+          "condition": "at(Hero, wolf_attack_1)",
+          "description": "Attacked by one wolf",
           "choices": [
             {
-              "text": "Accept elephant into caravan",
-              "action": "accept_elephant_into_caravan",
-              "next_stage": 1
-            },
-            {
-              "text": "Leave elephant",
-              "action": "leave_elephant",
+              "text": "Fight one wolf",
+              "action": "fight_one_wolf",
               "next_stage": -1
             }
           ]
         },
         {
           "id": 1,
-          "condition": "ally(Hero, Elephant) && days_passed(1)",
-          "description": "Feed the elephant",
+          "condition": "at(Hero, wolf_attack_2)",
+          "description": "Attacked by two wolves",
           "choices": [
             {
-              "text": "Feed elephant",
-              "action": "feed_elephant",
-              "next_stage": 1
-            },
-            {
-              "text": "Do not feed",
-              "action": "do_not_feed_elephant",
-              "next_stage": 2
+              "text": "Fight two wolves",
+              "action": "fight_two_wolves",
+              "next_stage": -1
             }
           ]
         },
         {
           "id": 2,
-          "condition": "hunger(Elephant, 3)",
-          "description": "Elephant attacks due to hunger",
+          "condition": "at(Hero, wolf_attack_3)",
+          "description": "Attacked by three wolves",
           "choices": [
             {
-              "text": "Fight the elephant",
-              "action": "elephant_attacks",
+              "text": "Fight three wolves",
+              "action": "fight_three_wolves",
+              "next_stage": -1
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "condition": "at(Hero, wolf_attack_4)",
+          "description": "Attacked by alpha wolf pack",
+          "choices": [
+            {
+              "text": "Fight alpha wolf pack",
+              "action": "fight_alpha_wolf_pack",
               "next_stage": -1
             }
           ]
@@ -408,107 +362,147 @@
   ],
   "rules": [
     {
-      "name": "heron_feeding",
-      "condition": "ally(Hero, Heron) && days_passed(0.5)",
+      "name": "heron_quest_trigger",
+      "condition": "at(Hero, quest_giver_heron)",
+      "effect": "trigger_stage(heron_quest, 0)"
+    },
+    {
+      "name": "heron_battle_trigger",
+      "condition": "at(Hero, heron_battle) && ally(Hero, Heron)",
       "effect": "trigger_stage(heron_quest, 1)"
     },
     {
-      "name": "heron_attack_on_hunger",
-      "condition": "hunger(Heron, 3)",
-      "effect": "trigger_stage(heron_quest, 2)"
+      "name": "cobra_quest_trigger",
+      "condition": "at(Hero, quest_giver_cobra)",
+      "effect": "trigger_stage(cobra_quest, 0)"
     },
     {
-      "name": "cobra_feeding",
-      "condition": "ally(Hero, Cobra) && days_passed(3)",
+      "name": "cobra_hunters_with_cobra",
+      "condition": "at(Hero, ?knot) && in_caravan(Cobra) && has_tag(?knot, cobra_hunters)",
       "effect": "trigger_stage(cobra_quest, 1)"
     },
     {
-      "name": "cobra_attack_on_hunger",
-      "condition": "hunger(Cobra, 3)",
+      "name": "cobra_hunters_without_cobra",
+      "condition": "at(Hero, ?knot) && !alive(Cobra) && has_tag(?knot, cobra_hunters) && !has(Hero, TravelerBoots)",
       "effect": "trigger_stage(cobra_quest, 2)"
     },
     {
-      "name": "elephant_feeding",
-      "condition": "ally(Hero, Elephant) && days_passed(1)",
-      "effect": "trigger_stage(elephant_quest, 1)"
+      "name": "wolf_attack_1_trigger",
+      "condition": "at(Hero, wolf_attack_1)",
+      "effect": "trigger_stage(wolf_quest, 0)"
     },
     {
-      "name": "elephant_attack_on_hunger",
-      "condition": "hunger(Elephant, 3)",
-      "effect": "trigger_stage(elephant_quest, 2)"
+      "name": "wolf_attack_2_trigger",
+      "condition": "at(Hero, wolf_attack_2)",
+      "effect": "trigger_stage(wolf_quest, 1)"
     },
     {
-      "name": "heron_battle_exclusion",
-      "condition": "at(Hero, heron_battle_zone) && in_caravan(Heron)",
-      "effect": "trigger_stage(heron_quest, 3)"
+      "name": "wolf_attack_3_trigger",
+      "condition": "at(Hero, wolf_attack_3)",
+      "effect": "trigger_stage(wolf_quest, 2)"
     },
     {
-      "name": "cobra_interaction",
-      "condition": "at(Hero, quest_giver_cobra) && in_caravan(Heron)",
-      "effect": "trigger_stage(heron_quest, 4)"
+      "name": "wolf_attack_4_trigger",
+      "condition": "at(Hero, wolf_attack_4)",
+      "effect": "trigger_stage(wolf_quest, 3)"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "distance",
+      "tag1": "quest_giver_heron",
+      "tag2": "quest_giver_cobra",
+      "min": 5
     },
     {
-      "name": "heron_attack_after_cobra",
-      "condition": "quest_completed(cobra_quest) && in_caravan(Heron)",
-      "effect": "trigger_stage(heron_quest, 6)"
+      "type": "distance",
+      "tag1": "quest_giver_heron",
+      "tag2": "heron_battle",
+      "min": 3
+    },
+    {
+      "type": "distance",
+      "tag1": "quest_giver_cobra",
+      "tag2": "heron_battle",
+      "min": 3
+    },
+    {
+      "type": "distance",
+      "tag1": "quest_giver_cobra",
+      "tag2": "cobra_hunters",
+      "min": 2
+    },
+    {
+      "type": "distance",
+      "tag1": "cobra_hunters",
+      "tag2": "cobra_hunters",
+      "min": 8
+    },
+    {
+      "type": "distance",
+      "tag1": "spawn",
+      "tag2": "wolf_attack_1",
+      "desired": 2
+    },
+    {
+      "type": "distance",
+      "tag1": "spawn",
+      "tag2": "wolf_attack_2",
+      "desired": 7
+    },
+    {
+      "type": "distance",
+      "tag1": "spawn",
+      "tag2": "wolf_attack_3",
+      "desired": 15
+    },
+    {
+      "type": "distance",
+      "tag1": "spawn",
+      "tag2": "wolf_attack_4",
+      "desired": 20
     }
   ],
   "tension_profile": [
     {
-      "action": "accept_heron_into_caravan",
+      "action": "accept_heron_quest",
       "tension": "+2"
     },
     {
-      "action": "feed_heron",
-      "tension": "+1"
-    },
-    {
-      "action": "do_not_feed_heron",
-      "tension": "+2"
-    },
-    {
-      "action": "heron_attacks",
-      "tension": "+4"
-    },
-    {
-      "action": "feed_cobra",
-      "tension": "+1"
-    },
-    {
-      "action": "do_not_feed_cobra",
-      "tension": "+2"
-    },
-    {
-      "action": "cobra_attacks",
-      "tension": "+4"
-    },
-    {
-      "action": "feed_elephant",
-      "tension": "+1"
-    },
-    {
-      "action": "do_not_feed_elephant",
-      "tension": "+2"
-    },
-    {
-      "action": "elephant_attacks",
+      "action": "fight_heron",
       "tension": "+5"
-    },
-    {
-      "action": "battle_herons",
-      "tension": "+3"
-    },
-    {
-      "action": "allow_heron_eat_cobra",
-      "tension": "+3"
     },
     {
       "action": "accept_cobra_into_caravan",
       "tension": "+2"
     },
     {
-      "action": "complete_cobra_quest",
+      "action": "refuse_cobra",
       "tension": "+4"
+    },
+    {
+      "action": "fight_cobra_hunters",
+      "tension": "+5"
+    },
+    {
+      "action": "get_traveler_boots",
+      "tension": "+3"
+    },
+    {
+      "action": "fight_one_wolf",
+      "tension": "+3"
+    },
+    {
+      "action": "fight_two_wolves",
+      "tension": "+4"
+    },
+    {
+      "action": "fight_three_wolves",
+      "tension": "+5"
+    },
+    {
+      "action": "fight_alpha_wolf_pack",
+      "tension": "+6"
     }
   ]
 }

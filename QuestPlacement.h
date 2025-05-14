@@ -18,6 +18,7 @@ private:
     std::vector<std::string> tag_list; // Список тегов, например, ["spawn", "quest_giver_heron"]
     std::map<std::string, int> desired_distances; // Желаемые дистанции от spawn_knot
     std::vector<std::tuple<std::string, std::string, int>> min_distance_constraints; // Минимальные расстояния между тегами
+    int spawn_node_id; // Фиксированный ID узла для тега spawn
     int population_size;
     int generations;
     float mutation_rate;
@@ -35,9 +36,10 @@ public:
         const std::vector<std::string>& tags,
         const std::map<std::string, int>& desired_dists,
         const std::vector<std::tuple<std::string, std::string, int>>& min_dist_constraints,
+        int spawn_node_id, // Добавляем фиксированный ID узла spawn
         int pop_size = 100,
         int gens = 50,
         float mut_rate = 0.01f
     );
-    std::map<std::string, int> run_genetic_algorithm(int spawn_node_id, std::mt19937& rng);
+    std::map<std::string, int> run_genetic_algorithm(std::mt19937& rng); // Убираем spawn_node_id из run, так как он уже в конструкторе
 };
