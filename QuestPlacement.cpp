@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <limits>
 #include <iostream>
+#include <unordered_map>
 
 QuestPlacement::QuestPlacement(
     const std::vector<Knot>& knots,
@@ -10,24 +11,43 @@ QuestPlacement::QuestPlacement(
     const std::vector<std::string>& tags,
     const std::map<std::string, int>& desired_dists,
     const std::vector<std::tuple<std::string, std::string, int>>& min_dist_constraints,
+    int spawn_node_id,
     int pop_size,
     int gens,
     float mut_rate
 ) : knots(knots), adjacency_list(adj_list), tag_list(tags), desired_distances(desired_dists),
-min_distance_constraints(min_dist_constraints), population_size(pop_size),
-generations(gens), mutation_rate(mut_rate) {
+min_distance_constraints(min_dist_constraints), spawn_node_id(spawn_node_id),
+population_size(pop_size), generations(gens), mutation_rate(mut_rate) {
 }
 
 std::vector<Chromosome> QuestPlacement::initialize_population(int num_nodes, int num_tags, std::mt19937& rng) {
     std::vector<Chromosome> population;
+    int spawn_tag_idx = -1;
+    for (size_t i = 0; i < tag_list.size(); ++i) {
+        if (tag_list[i] == "spawn") {
+            spawn_tag_idx = i;
+            break;
+        }
+    }
+
     for (int i = 0; i < population_size; ++i) {
         Chromosome chrom;
         chrom.node_ids.resize(num_tags);
         std::vector<int> available_nodes;
-        for (int j = 0; j < num_nodes; ++j) available_nodes.push_back(j);
+        for (int j = 0; j < num_nodes; ++j) if (j != spawn_node_id) available_nodes.push_back(j);
         std::shuffle(available_nodes.begin(), available_nodes.end(), rng);
+
+        // Фиксируем spawn на spawn_node_id
+        if (spawn_tag_idx != -1) {
+            chrom.node_ids[spawn_tag_idx] = spawn_node_id;
+        }
+
+        // Назначаем остальные теги
+        int avail_idx = 0;
         for (int j = 0; j < num_tags; ++j) {
-            chrom.node_ids[j] = available_nodes[j];
+            if (j != spawn_tag_idx) {
+                chrom.node_ids[j] = available_nodes[avail_idx++];
+            }
         }
         population.push_back(chrom);
     }
@@ -41,6 +61,18 @@ float QuestPlacement::compute_fitness(const Chromosome& chrom, const std::vector
     for (int node_id : chrom.node_ids) {
         if (assigned_nodes.count(node_id)) return -1e9;
         assigned_nodes.insert(node_id);
+    }
+
+    // Проверка, что spawn назначен на spawn_node_id
+    int spawn_tag_idx = -1;
+    for (size_t i = 0; i < tag_list.size(); ++i) {
+        if (tag_list[i] == "spawn") {
+            spawn_tag_idx = i;
+            break;
+        }
+    }
+    if (spawn_tag_idx != -1 && chrom.node_ids[spawn_tag_idx] != spawn_node_id) {
+        return -1e9; // Штраф за неправильное назначение spawn
     }
 
     float fitness = 0.0f;
@@ -74,7 +106,23 @@ Chromosome QuestPlacement::crossover(const Chromosome& parent1, const Chromosome
     child.node_ids.resize(parent1.node_ids.size());
     std::set<int> assigned;
     std::uniform_int_distribution<> dist(0, 1);
+    int spawn_tag_idx = -1;
+    for (size_t i = 0; i < tag_list.size(); ++i) {
+        if (tag_list[i] == "spawn") {
+            spawn_tag_idx = i;
+            break;
+        }
+    }
+
+    // Фиксируем spawn на spawn_node_id
+    if (spawn_tag_idx != -1) {
+        child.node_ids[spawn_tag_idx] = spawn_node_id;
+        assigned.insert(spawn_node_id);
+    }
+
+    // Скрещивание остальных тегов
     for (size_t i = 0; i < parent1.node_ids.size(); ++i) {
+        if (i == spawn_tag_idx) continue;
         int node = (dist(rng) == 0) ? parent1.node_ids[i] : parent2.node_ids[i];
         if (assigned.count(node)) {
             std::vector<int> available;
@@ -90,10 +138,19 @@ Chromosome QuestPlacement::crossover(const Chromosome& parent1, const Chromosome
 
 void QuestPlacement::mutate(Chromosome& chrom, int num_nodes, std::mt19937& rng) {
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    if (dist(rng) < mutation_rate * chrom.node_ids.size()) {
+    int spawn_tag_idx = -1;
+    for (size_t i = 0; i < tag_list.size(); ++i) {
+        if (tag_list[i] == "spawn") {
+            spawn_tag_idx = i;
+            break;
+        }
+    }
+
+    if (dist(rng) < mutation_rate * (chrom.node_ids.size() - 1)) {
         int i = rng() % chrom.node_ids.size();
+        while (i == spawn_tag_idx) i = rng() % chrom.node_ids.size();
         int j = rng() % chrom.node_ids.size();
-        while (j == i) j = rng() % chrom.node_ids.size();
+        while (j == spawn_tag_idx || j == i) j = rng() % chrom.node_ids.size();
         std::swap(chrom.node_ids[i], chrom.node_ids[j]);
     }
 }
@@ -184,7 +241,8 @@ std::vector<std::vector<int>> floyd_warshall(const std::unordered_map<Knot, std:
     return dist;
 }
 
-std::map<std::string, int> QuestPlacement::run_genetic_algorithm(int spawn_node_id, std::mt19937& rng) {
+std::map<std::string, int> QuestPlacement::run_genetic_algorithm(std::mt19937& rng) {
+    std::cout << "Running GA with spawn_node_id: " << spawn_node_id << " (" << knots[spawn_node_id].x << ", " << knots[spawn_node_id].y << ")\n";
     int num_nodes = knots.size();
     int num_tags = tag_list.size();
 
