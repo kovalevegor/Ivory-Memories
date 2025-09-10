@@ -1,2 +1,2 @@
-# IvoryMemories
+# Ivory Memories
 Original Game Development Repository
