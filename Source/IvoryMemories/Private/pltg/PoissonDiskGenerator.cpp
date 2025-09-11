@@ -2,6 +2,7 @@
 
 #include "pltg/PoissonDiskGenerator.h"
 #include "pltg/DelaunayTriangulation.h"
+#include "pltg/MinimumSpanningTree.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/Engine.h"
@@ -23,6 +24,9 @@ APoissonDiskGenerator::APoissonDiskGenerator()
 
     TriangulationClass = ADelaunayTriangulation::StaticClass();
     TriangulationActor = nullptr;
+
+    MSTClass = AMinimumSpanningTree::StaticClass();
+    MSTActor = nullptr;
 }
 
 void APoissonDiskGenerator::BeginPlay()
@@ -139,6 +143,25 @@ void APoissonDiskGenerator::GeneratePoints()
     if (TriangulationActor)
     {
         TriangulationActor->GenerateTriangulation(GeneratedPoints);
+    }
+
+    if (TriangulationActor)
+    {
+        TriangulationActor->GenerateTriangulation(GeneratedPoints);
+
+        // Create MST actor if needed
+        if (!MSTActor && MSTClass)
+        {
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.Owner = this;
+            MSTActor = GetWorld()->SpawnActor<AMinimumSpanningTree>(MSTClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+        }
+
+        // Generate MST
+        if (MSTActor)
+        {
+            MSTActor->GenerateMST(TriangulationActor->GetEdges());
+        }
     }
 
     DrawDebugSpheres();

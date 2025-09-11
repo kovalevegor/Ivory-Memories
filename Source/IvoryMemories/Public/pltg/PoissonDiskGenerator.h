@@ -7,6 +7,7 @@
 #include "PoissonDiskGenerator.generated.h"
 
 class ADelaunayTriangulation;
+class AMinimumSpanningTree;
 
 UCLASS()
 class IVORYMEMORIES_API APoissonDiskGenerator : public AActor
@@ -56,6 +57,12 @@ public:
 
     UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
     ADelaunayTriangulation* TriangulationActor;
+
+    UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling")
+    TSubclassOf<AMinimumSpanningTree> MSTClass;
+
+    UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
+    AMinimumSpanningTree* MSTActor;
 
 private:
     void GeneratePoints();

@@ -43,6 +43,12 @@ struct FDEdge
     FDEdge(FVector2D StartPoint, FVector2D EndPoint) : Start(StartPoint), End(EndPoint) {}
 
     bool operator==(const FDEdge& Other) const;
+
+    // Add this for hashing support
+    friend uint32 GetTypeHash(const FDEdge& Edge)
+    {
+        return HashCombine(GetTypeHash(Edge.Start), GetTypeHash(Edge.End));
+    }
 };
 
 UCLASS()
@@ -53,6 +59,9 @@ class IVORYMEMORIES_API ADelaunayTriangulation : public AActor
 public:
     // Sets default values for this actor's properties
     ADelaunayTriangulation();
+
+    // to get access to the edges
+    const TArray<FDEdge>& GetEdges() const { return Edges; }
 
 protected:
     // Called when the game starts or when spawned
