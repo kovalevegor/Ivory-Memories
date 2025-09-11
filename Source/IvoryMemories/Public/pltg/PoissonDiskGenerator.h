@@ -8,6 +8,7 @@
 
 class ADelaunayTriangulation;
 class AMinimumSpanningTree;
+class ASpectralClustering;
 
 UCLASS()
 class IVORYMEMORIES_API APoissonDiskGenerator : public AActor
@@ -64,7 +65,14 @@ public:
     UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
     AMinimumSpanningTree* MSTActor;
 
+    UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling")
+    TSubclassOf<ASpectralClustering> SpectralClusteringClass;
+
+    UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
+    ASpectralClustering* SpectralClusteringActor;
+
 private:
     void GeneratePoints();
     void DrawDebugSpheres();
+    void CreateSpectralClusteringActor();
 };

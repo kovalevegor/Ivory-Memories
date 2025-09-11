@@ -3,11 +3,10 @@
 #include "pltg/PoissonDiskGenerator.h"
 #include "pltg/DelaunayTriangulation.h"
 #include "pltg/MinimumSpanningTree.h"
+#include "pltg/SpectralClustering.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/Engine.h"
-
-//class ADelaunayTriangulation;
 
 // Sets default values
 APoissonDiskGenerator::APoissonDiskGenerator()
@@ -27,6 +26,9 @@ APoissonDiskGenerator::APoissonDiskGenerator()
 
     MSTClass = AMinimumSpanningTree::StaticClass();
     MSTActor = nullptr;
+
+    SpectralClusteringClass = ASpectralClustering::StaticClass();
+    SpectralClusteringActor = nullptr;
 }
 
 void APoissonDiskGenerator::BeginPlay()
@@ -127,8 +129,6 @@ void APoissonDiskGenerator::GeneratePoints()
         {
             ActiveList.RemoveAt(RandomIndex);
         }
-
-        
     }
 
     // Create triangulation if needed
@@ -145,23 +145,30 @@ void APoissonDiskGenerator::GeneratePoints()
         TriangulationActor->GenerateTriangulation(GeneratedPoints);
     }
 
-    if (TriangulationActor)
+    // Create MST actor if needed
+    if (!MSTActor && MSTClass && GetWorld())
     {
-        TriangulationActor->GenerateTriangulation(GeneratedPoints);
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        MSTActor = GetWorld()->SpawnActor<AMinimumSpanningTree>(MSTClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+    }
 
-        // Create MST actor if needed
-        if (!MSTActor && MSTClass)
-        {
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.Owner = this;
-            MSTActor = GetWorld()->SpawnActor<AMinimumSpanningTree>(MSTClass, GetActorLocation(), GetActorRotation(), SpawnParams);
-        }
+    // Generate MST
+    if (MSTActor && TriangulationActor)
+    {
+        MSTActor->GenerateMST(TriangulationActor->GetEdges());
+    }
 
-        // Generate MST
-        if (MSTActor)
-        {
-            MSTActor->GenerateMST(TriangulationActor->GetEdges());
-        }
+    // Create spectral clustering actor if needed
+    if (SpectralClusteringClass && !SpectralClusteringActor && GetWorld())
+    {
+        CreateSpectralClusteringActor();
+    }
+
+    // Perform spectral clustering
+    if (SpectralClusteringActor && MSTActor)
+    {
+        SpectralClusteringActor->PerformClustering(GeneratedPoints, MSTActor->MSTEdges);
     }
 
     DrawDebugSpheres();
@@ -179,5 +186,35 @@ void APoissonDiskGenerator::DrawDebugSpheres()
     {
         FVector Location(Point.X, Point.Y, 0);
         DrawDebugSphere(World, Location, SphereRadius, SphereSegments, SphereColor, bPersistent);
+    }
+}
+
+void APoissonDiskGenerator::CreateSpectralClusteringActor()
+{
+    if (!SpectralClusteringClass || !GetWorld()) return;
+
+    // Удаляем существующий актор
+    if (SpectralClusteringActor)
+    {
+        SpectralClusteringActor->Destroy();
+        SpectralClusteringActor = nullptr;
+    }
+
+    // Создаем новый актор
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpectralClusteringActor = GetWorld()->SpawnActor<ASpectralClustering>(SpectralClusteringClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+
+    if (SpectralClusteringActor)
+    {
+        UE_LOG(LogTemp, Log, TEXT("SpectralClustering actor created successfully"));
+
+        // Устанавливаем свойства для отладки
+        SpectralClusteringActor->SetbDrawClusters(true);
+        SpectralClusteringActor->SetDebugSphereRadius(100.0f);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to create SpectralClustering actor"));
     }
 }
