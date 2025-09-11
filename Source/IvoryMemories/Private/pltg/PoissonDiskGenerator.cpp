@@ -1,9 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "pltg/PoissonDiskGenerator.h"
+#include "pltg/DelaunayTriangulation.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/Engine.h"
+
+//class ADelaunayTriangulation;
 
 // Sets default values
 APoissonDiskGenerator::APoissonDiskGenerator()
@@ -17,6 +20,9 @@ APoissonDiskGenerator::APoissonDiskGenerator()
         GeneratePoints();
     }
 #endif
+
+    TriangulationClass = ADelaunayTriangulation::StaticClass();
+    TriangulationActor = nullptr;
 }
 
 void APoissonDiskGenerator::BeginPlay()
@@ -117,6 +123,22 @@ void APoissonDiskGenerator::GeneratePoints()
         {
             ActiveList.RemoveAt(RandomIndex);
         }
+
+        
+    }
+
+    // Create triangulation if needed
+    if (TriangulationClass && !TriangulationActor && GetWorld())
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        TriangulationActor = GetWorld()->SpawnActor<ADelaunayTriangulation>(TriangulationClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+    }
+
+    // Generate triangulation
+    if (TriangulationActor)
+    {
+        TriangulationActor->GenerateTriangulation(GeneratedPoints);
     }
 
     DrawDebugSpheres();

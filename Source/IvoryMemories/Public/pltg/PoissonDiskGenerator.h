@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "PoissonDiskGenerator.generated.h"
 
+class ADelaunayTriangulation;
+
 UCLASS()
 class IVORYMEMORIES_API APoissonDiskGenerator : public AActor
 {
@@ -48,6 +50,12 @@ public:
 
     UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
     TArray<FVector2D> GeneratedPoints;
+
+    UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling")
+    TSubclassOf<ADelaunayTriangulation> TriangulationClass;
+
+    UPROPERTY(VisibleAnywhere, Category = "Poisson Disk Sampling")
+    ADelaunayTriangulation* TriangulationActor;
 
 private:
     void GeneratePoints();
