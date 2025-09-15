@@ -536,15 +536,3 @@ void ASpectralClustering::ForceRedraw()
     bNeedToDrawClusters = true;
 }
 
-//int32 ASpectralClustering::FindVertexIndex(const TArray<FVector2D>& Vertices, const FVector2D& Target, float Tolerance = 0.01f)
-//{
-//    for (int32 i = 0; i < Vertices.Num(); i++)
-//    {
-//        if (FMath::IsNearlyEqual(Vertices[i].X, Target.X, Tolerance) &&
-//            FMath::IsNearlyEqual(Vertices[i].Y, Target.Y, Tolerance))
-//        {
-//            return i;
-//        }
-//    }
-//    return INDEX_NONE;
-//}
