@@ -3,10 +3,14 @@
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/RandomStream.h"
+#include "Misc/DateTime.h"
 
 ASpectralClustering::ASpectralClustering()
 {
     PrimaryActorTick.bCanEverTick = true;
+    bNeedToDrawClusters = false;
 
     ClusterColors.Add(FLinearColor::FromSRGBColor(FColor::FromHex("f75049")));
     ClusterColors.Add(FLinearColor::FromSRGBColor(FColor::FromHex("5ef6ff")));
@@ -27,80 +31,207 @@ void ASpectralClustering::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bDrawClusters)
+    if (bDrawClusters && bNeedToDrawClusters)
     {
         DrawDebugClusters();
+        bNeedToDrawClusters = false;
     }
 }
 
 void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, const TArray<FDEdge>& Edges)
 {
+    UE_LOG(LogTemp, Log, TEXT("PerformClustering called with %d vertices and %d edges (MST + random)"),
+        Vertices.Num(), Edges.Num());
+
     if (Vertices.Num() < NumberOfClusters)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Not enough vertices for clustering"));
+        UE_LOG(LogTemp, Warning, TEXT("Not enough vertices for clustering: %d < %d"),
+            Vertices.Num(), NumberOfClusters);
         return;
     }
 
     // Store the vertices for debug drawing
     ClusteredVertices = Vertices;
+    ClusterAssignments.Empty();
 
-    // Build adjacency matrix
-    TArray<TArray<float>> AdjacencyMatrix = BuildAdjacencyMatrix(Vertices, Edges);
-    TArray<TArray<float>> DegreeMatrix = ComputeDegreeMatrix(AdjacencyMatrix);
-    TArray<TArray<float>> LaplacianMatrix = ComputeNormalizedLaplacian(AdjacencyMatrix, DegreeMatrix);
-    TArray<TArray<float>> Eigenvectors = ComputeEigenvectors(LaplacianMatrix, NumberOfClusters);
-    ClusterAssignments = KMeansClustering(Eigenvectors, NumberOfClusters);
+    // 1. Build similarity matrix using ALL edges (MST + random)
+    UE_LOG(LogTemp, Log, TEXT("Building similarity matrix using ALL edges (MST + random)"));
+    TArray<TArray<float>> SimilarityMatrix = BuildSimilarityMatrixFromEdges(Vertices, Edges);
 
-    UE_LOG(LogTemp, Log, TEXT("Spectral clustering completed with %d clusters"), NumberOfClusters);
-}
+    // 2. Build degree matrix
+    UE_LOG(LogTemp, Log, TEXT("Building degree matrix"));
+    TArray<TArray<float>> DegreeMatrix = BuildDegreeMatrix(SimilarityMatrix);
 
-TArray<TArray<float>> ASpectralClustering::BuildAdjacencyMatrix(const TArray<FVector2D>& Vertices, const TArray<FDEdge>& Edges)
-{
-    int32 n = Vertices.Num();
-    TArray<TArray<float>> AdjacencyMatrix;
-    AdjacencyMatrix.Init(TArray<float>(), n);
+    // 3. Build normalized Laplacian matrix
+    UE_LOG(LogTemp, Log, TEXT("Building normalized Laplacian matrix"));
+    TArray<TArray<float>> LaplacianMatrix = BuildNormalizedLaplacian(SimilarityMatrix, DegreeMatrix);
 
-    for (int32 i = 0; i < n; i++)
+    // 4. Compute eigenvectors
+    UE_LOG(LogTemp, Log, TEXT("Computing eigenvectors"));
+    TArray<TArray<float>> Eigenvectors;
+    ComputeTopEigenvectors(LaplacianMatrix, NumberOfClusters, Eigenvectors);
+
+    // Check if eigenvectors were computed correctly
+    if (Eigenvectors.Num() == 0 || Eigenvectors[0].Num() != Vertices.Num())
     {
-        AdjacencyMatrix[i].Init(0.0f, n);
+        UE_LOG(LogTemp, Error, TEXT("Eigenvectors computation failed or dimensions mismatch"));
+        return;
     }
 
-    for (const FDEdge& Edge : Edges)
+    // 5. Transpose and normalize eigenvectors
+    UE_LOG(LogTemp, Log, TEXT("Transposing and normalizing eigenvectors"));
+    TArray<TArray<float>> TransposedEigenvectors;
+    TransposedEigenvectors.SetNum(Vertices.Num());
+
+    for (int32 i = 0; i < Vertices.Num(); i++)
     {
-        int32 i = Vertices.IndexOfByPredicate([&Edge](const FVector2D& Vertex) {
-            return Vertex.Equals(Edge.Start, 0.1f);
-            });
-
-        int32 j = Vertices.IndexOfByPredicate([&Edge](const FVector2D& Vertex) {
-            return Vertex.Equals(Edge.End, 0.1f);
-            });
-
-        if (i != INDEX_NONE && j != INDEX_NONE)
+        TransposedEigenvectors[i].SetNum(NumberOfClusters);
+        for (int32 j = 0; j < NumberOfClusters; j++)
         {
-            float Distance = FVector2D::Distance(Edge.Start, Edge.End);
-            float Weight = 1.0f / FMath::Max(Distance, 0.001f);
-            AdjacencyMatrix[i][j] = Weight;
-            AdjacencyMatrix[j][i] = Weight;
+            TransposedEigenvectors[i][j] = Eigenvectors[j][i];
+        }
+
+        // Normalize each row
+        float Norm = 0.0f;
+        for (int32 j = 0; j < NumberOfClusters; j++)
+        {
+            Norm += FMath::Square(TransposedEigenvectors[i][j]);
+        }
+
+        Norm = FMath::Sqrt(Norm);
+        if (Norm > 0)
+        {
+            for (int32 j = 0; j < NumberOfClusters; j++)
+            {
+                TransposedEigenvectors[i][j] /= Norm;
+            }
         }
     }
 
-    return AdjacencyMatrix;
+    // 6. Perform K-means clustering with multiple runs
+    UE_LOG(LogTemp, Log, TEXT("Starting K-means clustering with %d runs"), KMeansRuns);
+    ClusterAssignments = KMeansClustering(TransposedEigenvectors, NumberOfClusters, KMeansRuns);
+
+    UE_LOG(LogTemp, Log, TEXT("Spectral clustering completed with %d clusters. Vertices: %d, Assignments: %d"),
+        NumberOfClusters, ClusteredVertices.Num(), ClusterAssignments.Num());
+
+    // Debug: count points in each cluster
+    TArray<int32> ClusterCounts;
+    ClusterCounts.Init(0, NumberOfClusters);
+
+    for (int32 Assignment : ClusterAssignments)
+    {
+        if (ClusterCounts.IsValidIndex(Assignment))
+        {
+            ClusterCounts[Assignment]++;
+        }
+    }
+
+    for (int32 i = 0; i < NumberOfClusters; i++)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Cluster %d: %d points"), i, ClusterCounts[i]);
+    }
+
+    // Final check for consistency
+    if (ClusteredVertices.Num() != ClusterAssignments.Num())
+    {
+        UE_LOG(LogTemp, Error, TEXT("CRITICAL ERROR: Vertices count (%d) doesn't match assignments count (%d)"),
+            ClusteredVertices.Num(), ClusterAssignments.Num());
+    }
+
+    // Set flag to draw clusters
+    bNeedToDrawClusters = true;
 }
 
-TArray<TArray<float>> ASpectralClustering::ComputeDegreeMatrix(const TArray<TArray<float>>& AdjacencyMatrix)
+TArray<TArray<float>> ASpectralClustering::BuildSimilarityMatrixFromEdges(const TArray<FVector2D>& Vertices, const TArray<FDEdge>& Edges)
 {
-    int32 n = AdjacencyMatrix.Num();
-    TArray<TArray<float>> DegreeMatrix;
-    DegreeMatrix.Init(TArray<float>(), n);
+    int32 N = Vertices.Num();
+    TArray<TArray<float>> SimilarityMatrix;
+    SimilarityMatrix.SetNum(N);
 
-    for (int32 i = 0; i < n; i++)
+    for (int32 i = 0; i < N; i++)
     {
-        DegreeMatrix[i].Init(0.0f, n);
-        float Sum = 0.0f;
-
-        for (int32 j = 0; j < n; j++)
+        SimilarityMatrix[i].SetNum(N);
+        for (int32 j = 0; j < N; j++)
         {
-            Sum += AdjacencyMatrix[i][j];
+            SimilarityMatrix[i][j] = 0.0f;
+        }
+    }
+
+    // Calculate average edge length for adaptive sigma (using ALL edges)
+    float TotalEdgeLength = 0.0f;
+    int32 ValidEdgesCount = 0;
+
+    for (const FDEdge& Edge : Edges)
+    {
+        int32 i = FindVertexIndex(Vertices, Edge.Start);
+        int32 j = FindVertexIndex(Vertices, Edge.End);
+
+        if (i != INDEX_NONE && j != INDEX_NONE && i != j)
+        {
+            float EdgeLength = FVector2D::Distance(Vertices[i], Vertices[j]);
+            TotalEdgeLength += EdgeLength;
+            ValidEdgesCount++;
+        }
+    }
+
+    if (ValidEdgesCount == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No valid edges found for similarity matrix"));
+        return SimilarityMatrix;
+    }
+
+    float AvgEdgeLength = TotalEdgeLength / ValidEdgesCount;
+    float AdaptiveSigma = AvgEdgeLength * SigmaCoefficient;
+
+    UE_LOG(LogTemp, Log, TEXT("Adaptive sigma: %.2f (avg edge length: %.2f, coefficient: %.2f, edges: %d)"),
+        AdaptiveSigma, AvgEdgeLength, SigmaCoefficient, ValidEdgesCount);
+
+    float TwoSigmaSquared = 2.0f * FMath::Square(AdaptiveSigma);
+
+    // Build similarity matrix based on ALL edges (MST + random)
+    for (const FDEdge& Edge : Edges)
+    {
+        int32 i = FindVertexIndex(Vertices, Edge.Start);
+        int32 j = FindVertexIndex(Vertices, Edge.End);
+
+        if (i != INDEX_NONE && j != INDEX_NONE && i != j)
+        {
+            float DistanceSquared = FVector2D::DistSquared(Vertices[i], Vertices[j]);
+            float Similarity = FMath::Exp(-DistanceSquared / TwoSigmaSquared);
+
+            SimilarityMatrix[i][j] = Similarity;
+            SimilarityMatrix[j][i] = Similarity;
+        }
+    }
+
+    // Ensure self-similarity is 1.0
+    for (int32 i = 0; i < N; i++)
+    {
+        SimilarityMatrix[i][i] = 1.0f;
+    }
+
+    return SimilarityMatrix;
+}
+
+TArray<TArray<float>> ASpectralClustering::BuildDegreeMatrix(const TArray<TArray<float>>& SimilarityMatrix)
+{
+    int32 N = SimilarityMatrix.Num();
+    TArray<TArray<float>> DegreeMatrix;
+    DegreeMatrix.SetNum(N);
+
+    for (int32 i = 0; i < N; i++)
+    {
+        DegreeMatrix[i].SetNum(N);
+        for (int32 j = 0; j < N; j++)
+        {
+            DegreeMatrix[i][j] = 0.0f;
+        }
+
+        float Sum = 0.0f;
+        for (int32 j = 0; j < N; j++)
+        {
+            Sum += SimilarityMatrix[i][j];
         }
 
         DegreeMatrix[i][i] = Sum;
@@ -109,140 +240,278 @@ TArray<TArray<float>> ASpectralClustering::ComputeDegreeMatrix(const TArray<TArr
     return DegreeMatrix;
 }
 
-TArray<TArray<float>> ASpectralClustering::ComputeNormalizedLaplacian(const TArray<TArray<float>>& AdjacencyMatrix, const TArray<TArray<float>>& DegreeMatrix)
+TArray<TArray<float>> ASpectralClustering::BuildNormalizedLaplacian(const TArray<TArray<float>>& SimilarityMatrix, const TArray<TArray<float>>& DegreeMatrix)
 {
-    int32 n = AdjacencyMatrix.Num();
+    int32 N = SimilarityMatrix.Num();
     TArray<TArray<float>> LaplacianMatrix;
-    LaplacianMatrix.Init(TArray<float>(), n);
+    LaplacianMatrix.SetNum(N);
 
-    for (int32 i = 0; i < n; i++)
+    // Сначала вычислим D^(-1/2)
+    TArray<float> D_sqrt_inv;
+    D_sqrt_inv.SetNum(N);
+    for (int32 i = 0; i < N; i++)
     {
-        LaplacianMatrix[i].Init(0.0f, n);
+        if (DegreeMatrix[i][i] > 0)
+            D_sqrt_inv[i] = 1.0f / FMath::Sqrt(DegreeMatrix[i][i]);
+        else
+            D_sqrt_inv[i] = 0.0f;
+    }
 
-        for (int32 j = 0; j < n; j++)
+    // L = I - D^(-1/2) * S * D^(-1/2)
+    for (int32 i = 0; i < N; i++)
+    {
+        LaplacianMatrix[i].SetNum(N);
+        for (int32 j = 0; j < N; j++)
         {
             if (i == j)
-            {
-                LaplacianMatrix[i][j] = 1.0f;
-            }
-            else if (DegreeMatrix[i][i] > 0 && DegreeMatrix[j][j] > 0)
-            {
-                LaplacianMatrix[i][j] = -AdjacencyMatrix[i][j] / FMath::Sqrt(DegreeMatrix[i][i] * DegreeMatrix[j][j]);
-            }
+                LaplacianMatrix[i][j] = 1.0f - D_sqrt_inv[i] * SimilarityMatrix[i][j] * D_sqrt_inv[j];
+            else
+                LaplacianMatrix[i][j] = -D_sqrt_inv[i] * SimilarityMatrix[i][j] * D_sqrt_inv[j];
         }
     }
 
     return LaplacianMatrix;
 }
 
-TArray<TArray<float>> ASpectralClustering::ComputeEigenvectors(const TArray<TArray<float>>& LaplacianMatrix, int32 k)
+void ASpectralClustering::ComputeTopEigenvectors(const TArray<TArray<float>>& Matrix, int32 NumEigenvectors, TArray<TArray<float>>& Eigenvectors)
 {
-    int32 n = LaplacianMatrix.Num();
-    TArray<TArray<float>> Eigenvectors;
-    Eigenvectors.Init(TArray<float>(), n);
+    int32 N = Matrix.Num();
+    Eigenvectors.SetNum(NumEigenvectors);
 
-    for (int32 i = 0; i < n; i++)
+    for (int32 i = 0; i < NumEigenvectors; i++)
     {
-        Eigenvectors[i].Init(0.0f, k);
-
-        for (int32 j = 0; j < k; j++)
+        // Initialize random eigenvector
+        Eigenvectors[i].SetNum(N);
+        for (int32 j = 0; j < N; j++)
         {
             Eigenvectors[i][j] = FMath::FRandRange(-1.0f, 1.0f);
         }
-    }
 
-    return Eigenvectors;
+        // Orthogonalize against previous eigenvectors
+        for (int32 j = 0; j < i; j++)
+        {
+            float DotProduct = 0.0f;
+            for (int32 k = 0; k < N; k++)
+            {
+                DotProduct += Eigenvectors[i][k] * Eigenvectors[j][k];
+            }
+
+            for (int32 k = 0; k < N; k++)
+            {
+                Eigenvectors[i][k] -= DotProduct * Eigenvectors[j][k];
+            }
+        }
+
+        // Power iteration
+        for (int32 iter = 0; iter < PowerIterations; iter++)
+        {
+            // Multiply matrix by vector
+            TArray<float> NewVector;
+            NewVector.SetNum(N);
+            for (int32 j = 0; j < N; j++) NewVector[j] = 0.0f;
+
+            for (int32 row = 0; row < N; row++)
+            {
+                for (int32 col = 0; col < N; col++)
+                {
+                    NewVector[row] += Matrix[row][col] * Eigenvectors[i][col];
+                }
+            }
+
+            // Orthogonalize against previous eigenvectors
+            for (int32 j = 0; j < i; j++)
+            {
+                float DotProduct = 0.0f;
+                for (int32 k = 0; k < N; k++)
+                {
+                    DotProduct += NewVector[k] * Eigenvectors[j][k];
+                }
+
+                for (int32 k = 0; k < N; k++)
+                {
+                    NewVector[k] -= DotProduct * Eigenvectors[j][k];
+                }
+            }
+
+            // Normalize
+            float Norm = 0.0f;
+            for (int32 j = 0; j < N; j++)
+            {
+                Norm += FMath::Square(NewVector[j]);
+            }
+
+            Norm = FMath::Sqrt(Norm);
+            if (Norm > 0)
+            {
+                for (int32 j = 0; j < N; j++)
+                {
+                    Eigenvectors[i][j] = NewVector[j] / Norm;
+                }
+            }
+        }
+    }
 }
 
-TArray<int32> ASpectralClustering::KMeansClustering(const TArray<TArray<float>>& Eigenvectors, int32 k, int32 MaxIterations)
+TArray<int32> ASpectralClustering::KMeansClustering(const TArray<TArray<float>>& Data, int32 k, int32 NumRuns)
 {
-    int32 n = Eigenvectors.Num();
-    TArray<int32> LocalClusterAssignments;
-    LocalClusterAssignments.Init(0, n);
+    int32 N = Data.Num();
+    if (N == 0) return TArray<int32>();
+    int32 Dim = Data[0].Num();
 
-    TArray<TArray<float>> Centroids;
-    Centroids.Init(TArray<float>(), k);
+    TArray<int32> BestAssignments;
+    float BestVariance = FLT_MAX;
 
-    for (int32 i = 0; i < k; i++)
+    // Run K-means multiple times and choose the best result
+    for (int32 run = 0; run < NumRuns; run++)
     {
-        int32 RandomIndex = FMath::RandRange(0, n - 1);
-        Centroids[i] = Eigenvectors[RandomIndex];
-    }
+        TArray<int32> Assignments;
+        Assignments.SetNum(N);
+        for (int32 i = 0; i < N; i++) Assignments[i] = 0;
 
-    for (int32 Iteration = 0; Iteration < MaxIterations; Iteration++)
-    {
-        for (int32 i = 0; i < n; i++)
+        // Initialize centroids randomly
+        TArray<TArray<float>> Centroids;
+        Centroids.SetNum(k);
+
+        // Use FRandomStream for random numbers
+        FRandomStream RandomStream(FDateTime::Now().GetTicks() + run);
+
+        TArray<int32> Indices;
+        Indices.SetNum(N);
+        for (int32 i = 0; i < N; i++) Indices[i] = i;
+
+        // Shuffle indices
+        for (int32 i = N - 1; i > 0; i--)
         {
-            float MinDistance = FLT_MAX;
-            int32 BestCluster = 0;
-
-            for (int32 j = 0; j < k; j++)
-            {
-                float Distance = 0.0f;
-                for (int32 d = 0; d < Eigenvectors[i].Num(); d++)
-                {
-                    Distance += FMath::Pow(Eigenvectors[i][d] - Centroids[j][d], 2);
-                }
-
-                if (Distance < MinDistance)
-                {
-                    MinDistance = Distance;
-                    BestCluster = j;
-                }
-            }
-
-            LocalClusterAssignments[i] = BestCluster;
-        }
-
-        TArray<TArray<float>> NewCentroids;
-        TArray<int32> ClusterSizes;
-        NewCentroids.Init(TArray<float>(), k);
-        ClusterSizes.Init(0, k);
-
-        for (int32 i = 0; i < k; i++)
-        {
-            NewCentroids[i].Init(0.0f, Eigenvectors[0].Num());
-        }
-
-        for (int32 i = 0; i < n; i++)
-        {
-            int32 Cluster = LocalClusterAssignments[i];
-            ClusterSizes[Cluster]++;
-
-            for (int32 d = 0; d < Eigenvectors[i].Num(); d++)
-            {
-                NewCentroids[Cluster][d] += Eigenvectors[i][d];
-            }
+            int32 j = RandomStream.RandRange(0, i);
+            int32 Temp = Indices[i];
+            Indices[i] = Indices[j];
+            Indices[j] = Temp;
         }
 
         for (int32 i = 0; i < k; i++)
         {
-            if (ClusterSizes[i] > 0)
+            Centroids[i] = Data[Indices[i]];
+        }
+
+        for (int32 iter = 0; iter < 100; iter++)
+        {
+            // Assign points to nearest centroid
+            for (int32 i = 0; i < N; i++)
             {
-                for (int32 d = 0; d < NewCentroids[i].Num(); d++)
+                float MinDistance = FLT_MAX;
+                int32 BestCluster = 0;
+
+                for (int32 j = 0; j < k; j++)
                 {
-                    NewCentroids[i][d] /= ClusterSizes[i];
+                    float Distance = 0.0f;
+                    for (int32 d = 0; d < Dim; d++)
+                    {
+                        Distance += FMath::Square(Data[i][d] - Centroids[j][d]);
+                    }
+
+                    if (Distance < MinDistance)
+                    {
+                        MinDistance = Distance;
+                        BestCluster = j;
+                    }
                 }
+
+                Assignments[i] = BestCluster;
+            }
+
+            // Update centroids
+            TArray<TArray<float>> NewCentroids;
+            TArray<int32> ClusterSizes;
+            NewCentroids.SetNum(k);
+            ClusterSizes.SetNum(k);
+            for (int32 i = 0; i < k; i++)
+            {
+                NewCentroids[i].SetNum(Dim);
+                for (int32 d = 0; d < Dim; d++) NewCentroids[i][d] = 0.0f;
+                ClusterSizes[i] = 0;
+            }
+
+            for (int32 i = 0; i < N; i++)
+            {
+                int32 Cluster = Assignments[i];
+                ClusterSizes[Cluster]++;
+
+                for (int32 d = 0; d < Dim; d++)
+                {
+                    NewCentroids[Cluster][d] += Data[i][d];
+                }
+            }
+
+            for (int32 i = 0; i < k; i++)
+            {
+                if (ClusterSizes[i] > 0)
+                {
+                    for (int32 d = 0; d < Dim; d++)
+                    {
+                        NewCentroids[i][d] /= ClusterSizes[i];
+                    }
+                }
+            }
+
+            // Check for convergence
+            bool Converged = true;
+            for (int32 i = 0; i < k; i++)
+            {
+                for (int32 d = 0; d < Dim; d++)
+                {
+                    if (FMath::Abs(NewCentroids[i][d] - Centroids[i][d]) > 0.001f)
+                    {
+                        Converged = false;
+                        break;
+                    }
+                }
+                if (!Converged) break;
+            }
+
+            if (Converged) break;
+
+            Centroids = NewCentroids;
+        }
+
+        // Calculate within-cluster variance
+        float TotalVariance = 0.0f;
+        for (int32 i = 0; i < N; i++)
+        {
+            int32 Cluster = Assignments[i];
+            for (int32 d = 0; d < Dim; d++)
+            {
+                TotalVariance += FMath::Square(Data[i][d] - Centroids[Cluster][d]);
             }
         }
 
-        Centroids = NewCentroids;
+        // Keep the best result
+        if (TotalVariance < BestVariance)
+        {
+            BestVariance = TotalVariance;
+            BestAssignments = Assignments;
+        }
     }
 
-    return LocalClusterAssignments;
+    return BestAssignments;
 }
 
 void ASpectralClustering::DrawDebugClusters()
 {
     UWorld* World = GetWorld();
-    if (!World || ClusterAssignments.Num() == 0) return;
+    if (!World) return;
 
-    // Get all vertices from the graph
-    if (ClusteredVertices.Num() != ClusterAssignments.Num())
+    if (ClusterAssignments.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Mismatch between vertices and cluster assignments"));
         return;
     }
+
+    if (ClusteredVertices.Num() != ClusterAssignments.Num())
+    {
+        return;
+    }
+
+    // Use persistent debug spheres
+    FlushPersistentDebugLines(World);
 
     // Draw debug spheres for each vertex with cluster color
     for (int32 i = 0; i < ClusteredVertices.Num(); i++)
@@ -257,6 +526,25 @@ void ASpectralClustering::DrawDebugClusters()
             Color = ClusterColors[ClusterIndex].ToFColor(true);
         }
 
-        DrawDebugSphere(World, Location, DebugSphereRadius, 12, Color, false, -1, 0);
+        DrawDebugSphere(World, Location, DebugSphereRadius, 12, Color, true, -1, 0);
     }
 }
+
+void ASpectralClustering::ForceRedraw()
+{
+    UE_LOG(LogTemp, Log, TEXT("ForceRedraw called"));
+    bNeedToDrawClusters = true;
+}
+
+//int32 ASpectralClustering::FindVertexIndex(const TArray<FVector2D>& Vertices, const FVector2D& Target, float Tolerance = 0.01f)
+//{
+//    for (int32 i = 0; i < Vertices.Num(); i++)
+//    {
+//        if (FMath::IsNearlyEqual(Vertices[i].X, Target.X, Tolerance) &&
+//            FMath::IsNearlyEqual(Vertices[i].Y, Target.Y, Tolerance))
+//        {
+//            return i;
+//        }
+//    }
+//    return INDEX_NONE;
+//}

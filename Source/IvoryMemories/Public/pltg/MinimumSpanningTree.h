@@ -59,11 +59,11 @@ public:
     FColor MSTColor = FColor::Blue;
 
     UPROPERTY(EditAnywhere, Category = "Minimum Spanning Tree|Debug")
-    float MSTThickness = 3.0f;
+    float MSTThickness = 5.0f;
 
     // Probability to add random edges back to MST (for more connected graphs)
     UPROPERTY(EditAnywhere, Category = "Minimum Spanning Tree")
-    float RandomEdgeProbability = 0.1f;
+    float RandomEdgeProbability = 0.3f;
 
 private:
     // Disjoint Set Union (DSU) for Kruskal's algorithm

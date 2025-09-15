@@ -44,7 +44,7 @@ struct FDEdge
 
     bool operator==(const FDEdge& Other) const;
 
-    // Add this for hashing support
+    // hashing support
     friend uint32 GetTypeHash(const FDEdge& Edge)
     {
         return HashCombine(GetTypeHash(Edge.Start), GetTypeHash(Edge.End));
@@ -88,7 +88,7 @@ public:
 
     // Debug drawing properties
     UPROPERTY(EditAnywhere, Category = "Delaunay Triangulation|Debug")
-    bool bDrawTriangulation = true;
+    bool bDrawTriangulation = false;
 
     UPROPERTY(EditAnywhere, Category = "Delaunay Triangulation|Debug")
     FColor EdgeColor = FColor::Green;

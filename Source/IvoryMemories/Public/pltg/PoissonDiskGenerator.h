@@ -27,13 +27,13 @@ protected:
 
 public:
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling|Debug")
-    float SphereRadius = 100.0f;
+    float SphereRadius = 12.0f;
 
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling|Debug")
     FColor SphereColor = FColor::Red;
 
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling|Debug")
-    int SphereSegments = 12;
+    int SphereSegments = 6;
 
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling|Debug")
     bool bPersistent = true;
@@ -45,7 +45,7 @@ public:
     float Height = 1000.0f;
 
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling")
-    float Radius = 50.0f;
+    float Radius = 80.0f;
 
     UPROPERTY(EditAnywhere, Category = "Poisson Disk Sampling")
     int K = 30;
