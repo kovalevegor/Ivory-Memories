@@ -50,35 +50,56 @@ void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, c
         return;
     }
 
-    // Store the vertices for debug drawing
+    // Сохраняем вершины для отладочной визуализации
     ClusteredVertices = Vertices;
     ClusterAssignments.Empty();
 
-    // 1. Build similarity matrix using ALL edges (MST + random)
+    // 1. Построение матрицы сходства, используя ВСЕ рёбра (MST + случайные)
     UE_LOG(LogTemp, Log, TEXT("Building similarity matrix using ALL edges (MST + random)"));
     TArray<TArray<float>> SimilarityMatrix = BuildSimilarityMatrixFromEdges(Vertices, Edges);
 
-    // 2. Build degree matrix
+    // 2. Построение матрицы степеней
     UE_LOG(LogTemp, Log, TEXT("Building degree matrix"));
     TArray<TArray<float>> DegreeMatrix = BuildDegreeMatrix(SimilarityMatrix);
 
-    // 3. Build normalized Laplacian matrix
+    // 3. Построение нормализованного лапласиана
     UE_LOG(LogTemp, Log, TEXT("Building normalized Laplacian matrix"));
     TArray<TArray<float>> LaplacianMatrix = BuildNormalizedLaplacian(SimilarityMatrix, DegreeMatrix);
 
-    // 4. Compute eigenvectors
+    // 4. Создание сдвинутого лапласиана для степенной итерации (для наименьших векторов)
+    UE_LOG(LogTemp, Log, TEXT("Creating shifted Laplacian (shift=%f)"), LaplacianShift);
+    int32 N = LaplacianMatrix.Num();
+    TArray<TArray<float>> ShiftedLaplacian;
+    ShiftedLaplacian.SetNum(N);
+    for (int32 i = 0; i < N; i++)
+    {
+        ShiftedLaplacian[i].SetNum(N);
+        for (int32 j = 0; j < N; j++)
+        {
+            ShiftedLaplacian[i][j] = (i == j ? LaplacianShift : 0.0f) - LaplacianMatrix[i][j];
+        }
+    }
+
+    // 5. Вычисление наибольших векторов сдвинутого лапласиана (соответствуют наименьшим оригинального)
     UE_LOG(LogTemp, Log, TEXT("Computing eigenvectors"));
     TArray<TArray<float>> Eigenvectors;
-    ComputeTopEigenvectors(LaplacianMatrix, NumberOfClusters, Eigenvectors);
+    int32 NumEigenToCompute = bSkipTrivialEigenvector ? NumberOfClusters + 1 : NumberOfClusters;
+    ComputeTopEigenvectors(ShiftedLaplacian, NumEigenToCompute, Eigenvectors);
 
-    // Check if eigenvectors were computed correctly
+    // Проверка корректности вычисления векторов
     if (Eigenvectors.Num() == 0 || Eigenvectors[0].Num() != Vertices.Num())
     {
         UE_LOG(LogTemp, Error, TEXT("Eigenvectors computation failed or dimensions mismatch"));
         return;
     }
 
-    // 5. Transpose and normalize eigenvectors
+    // Пропуск тривиального вектора, если включено (первый — постоянный для связного графа)
+    if (bSkipTrivialEigenvector && Eigenvectors.Num() > NumberOfClusters)
+    {
+        Eigenvectors.RemoveAt(0); // Удаляем первый (наименьший, тривиальный)
+    }
+
+    // 6. Транспонирование и нормализация векторов
     UE_LOG(LogTemp, Log, TEXT("Transposing and normalizing eigenvectors"));
     TArray<TArray<float>> TransposedEigenvectors;
     TransposedEigenvectors.SetNum(Vertices.Num());
@@ -91,7 +112,7 @@ void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, c
             TransposedEigenvectors[i][j] = Eigenvectors[j][i];
         }
 
-        // Normalize each row
+        // Нормализация каждой строки
         float Norm = 0.0f;
         for (int32 j = 0; j < NumberOfClusters; j++)
         {
@@ -99,7 +120,7 @@ void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, c
         }
 
         Norm = FMath::Sqrt(Norm);
-        if (Norm > 0)
+        if (Norm > SMALL_NUMBER) // Избегаем деления на ноль
         {
             for (int32 j = 0; j < NumberOfClusters; j++)
             {
@@ -108,14 +129,14 @@ void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, c
         }
     }
 
-    // 6. Perform K-means clustering with multiple runs
+    // 7. Выполнение k-средних с многократными запусками
     UE_LOG(LogTemp, Log, TEXT("Starting K-means clustering with %d runs"), KMeansRuns);
     ClusterAssignments = KMeansClustering(TransposedEigenvectors, NumberOfClusters, KMeansRuns);
 
     UE_LOG(LogTemp, Log, TEXT("Spectral clustering completed with %d clusters. Vertices: %d, Assignments: %d"),
         NumberOfClusters, ClusteredVertices.Num(), ClusterAssignments.Num());
 
-    // Debug: count points in each cluster
+    // Отладка: подсчёт точек в каждом кластере
     TArray<int32> ClusterCounts;
     ClusterCounts.Init(0, NumberOfClusters);
 
@@ -132,14 +153,14 @@ void ASpectralClustering::PerformClustering(const TArray<FVector2D>& Vertices, c
         UE_LOG(LogTemp, Log, TEXT("Cluster %d: %d points"), i, ClusterCounts[i]);
     }
 
-    // Final check for consistency
+    // Проверка согласованности
     if (ClusteredVertices.Num() != ClusterAssignments.Num())
     {
         UE_LOG(LogTemp, Error, TEXT("CRITICAL ERROR: Vertices count (%d) doesn't match assignments count (%d)"),
             ClusteredVertices.Num(), ClusterAssignments.Num());
     }
 
-    // Set flag to draw clusters
+    // Установка флага для отрисовки кластеров
     bNeedToDrawClusters = true;
 }
 
@@ -158,10 +179,8 @@ TArray<TArray<float>> ASpectralClustering::BuildSimilarityMatrixFromEdges(const 
         }
     }
 
-    // Calculate average edge length for adaptive sigma (using ALL edges)
-    float TotalEdgeLength = 0.0f;
-    int32 ValidEdgesCount = 0;
-
+    // Вычисление медианной длины рёбер для адаптивного sigma (более устойчиво, чем среднее)
+    TArray<float> EdgeLengths;
     for (const FDEdge& Edge : Edges)
     {
         int32 i = FindVertexIndex(Vertices, Edge.Start);
@@ -169,27 +188,27 @@ TArray<TArray<float>> ASpectralClustering::BuildSimilarityMatrixFromEdges(const 
 
         if (i != INDEX_NONE && j != INDEX_NONE && i != j)
         {
-            float EdgeLength = FVector2D::Distance(Vertices[i], Vertices[j]);
-            TotalEdgeLength += EdgeLength;
-            ValidEdgesCount++;
+            float DistSq = FVector2D::DistSquared(Vertices[i], Vertices[j]);
+            EdgeLengths.Add(FMath::Sqrt(DistSq));
         }
     }
 
-    if (ValidEdgesCount == 0)
+    if (EdgeLengths.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("No valid edges found for similarity matrix"));
+        UE_LOG(LogTemp, Warning, TEXT("No valid edges for similarity matrix"));
         return SimilarityMatrix;
     }
 
-    float AvgEdgeLength = TotalEdgeLength / ValidEdgesCount;
-    float AdaptiveSigma = AvgEdgeLength * SigmaCoefficient;
+    // Сортировка и поиск медианы
+    EdgeLengths.Sort();
+    float MedianLength = EdgeLengths[EdgeLengths.Num() / 2];
+    float Sigma = MedianLength * SigmaCoefficient;
+    float SigmaSq2 = 2.0f * FMath::Square(Sigma);
 
-    UE_LOG(LogTemp, Log, TEXT("Adaptive sigma: %.2f (avg edge length: %.2f, coefficient: %.2f, edges: %d)"),
-        AdaptiveSigma, AvgEdgeLength, SigmaCoefficient, ValidEdgesCount);
+    UE_LOG(LogTemp, Log, TEXT("Using median edge length: %f, sigma: %f"), MedianLength, Sigma);
 
-    float TwoSigmaSquared = 2.0f * FMath::Square(AdaptiveSigma);
-
-    // Build similarity matrix based on ALL edges (MST + random)
+    // Заполнение матрицы сходства (гауссово ядро)
+    int32 EdgesProcessed = 0;
     for (const FDEdge& Edge : Edges)
     {
         int32 i = FindVertexIndex(Vertices, Edge.Start);
@@ -197,19 +216,16 @@ TArray<TArray<float>> ASpectralClustering::BuildSimilarityMatrixFromEdges(const 
 
         if (i != INDEX_NONE && j != INDEX_NONE && i != j)
         {
-            float DistanceSquared = FVector2D::DistSquared(Vertices[i], Vertices[j]);
-            float Similarity = FMath::Exp(-DistanceSquared / TwoSigmaSquared);
+            float DistSq = FVector2D::DistSquared(Vertices[i], Vertices[j]);
+            float Similarity = FMath::Exp(-DistSq / SigmaSq2);
 
             SimilarityMatrix[i][j] = Similarity;
-            SimilarityMatrix[j][i] = Similarity;
+            SimilarityMatrix[j][i] = Similarity; // Симметричная
+            EdgesProcessed++;
         }
     }
 
-    // Ensure self-similarity is 1.0
-    for (int32 i = 0; i < N; i++)
-    {
-        SimilarityMatrix[i][i] = 1.0f;
-    }
+    UE_LOG(LogTemp, Log, TEXT("Processed %d edges for similarity matrix"), EdgesProcessed);
 
     return SimilarityMatrix;
 }
