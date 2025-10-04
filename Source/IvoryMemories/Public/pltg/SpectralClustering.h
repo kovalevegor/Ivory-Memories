@@ -24,7 +24,6 @@ public:
 
     void DrawDebugClusters();
 
-    // Сеттеры
     UFUNCTION(BlueprintCallable, Category = "Spectral Clustering")
     void SetbDrawClusters(bool bDraw) { bDrawClusters = bDraw; }
 
@@ -35,10 +34,10 @@ public:
     void ForceRedraw();
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
-    int32 NumberOfClusters = 3;
+    int32 NumberOfClusters = 5;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering", meta = (ClampMin = "0.1", ClampMax = "5.0"))
-    float SigmaCoefficient = 0.5f; // Уменьшено для более плотных кластеров
+    float SigmaCoefficient = 2.5f;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
     TArray<FLinearColor> ClusterColors;
@@ -50,16 +49,16 @@ public:
     float DebugSphereRadius = 24.0f;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
-    int32 KMeansRuns = 10; // Увеличено для большей стабильности
+    int32 KMeansRuns = 50;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
-    int32 PowerIterations = 200; // Увеличено для лучшей сходимости
+    int32 PowerIterations = 200;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
-    float LaplacianShift = 2.1f; // Сдвиг для степенной итерации (чуть больше 2 для безопасности)
+    float LaplacianShift = 2.1f;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
-    bool bSkipTrivialEigenvector = true; // Пропускать тривиальный вектор для связных графов
+    bool bSkipTrivialEigenvector = true;
 
 private:
     TArray<int32> ClusterAssignments;

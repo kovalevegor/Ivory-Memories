@@ -292,77 +292,81 @@ TArray<TArray<float>> ASpectralClustering::BuildNormalizedLaplacian(const TArray
 void ASpectralClustering::ComputeTopEigenvectors(const TArray<TArray<float>>& Matrix, int32 NumEigenvectors, TArray<TArray<float>>& Eigenvectors)
 {
     int32 N = Matrix.Num();
-    Eigenvectors.SetNum(NumEigenvectors);
+    Eigenvectors.Empty();
+    if (N == 0) return;
 
-    for (int32 i = 0; i < NumEigenvectors; i++)
+    TArray<TArray<float>> CurrentMatrix = Matrix; // Копия матрицы для дефляции
+    FRandomStream RandomStream(FDateTime::Now().GetTicks());
+
+    for (int32 k = 0; k < NumEigenvectors; k++)
     {
-        // Initialize random eigenvector
-        Eigenvectors[i].SetNum(N);
-        for (int32 j = 0; j < N; j++)
+        // Инициализация случайного вектора
+        TArray<float> Vector;
+        Vector.SetNum(N);
+        float Norm = 0.0f;
+        for (int32 i = 0; i < N; i++)
         {
-            Eigenvectors[i][j] = FMath::FRandRange(-1.0f, 1.0f);
+            Vector[i] = RandomStream.FRandRange(-1.0f, 1.0f);
+            Norm += FMath::Square(Vector[i]);
+        }
+        Norm = FMath::Sqrt(Norm);
+        for (int32 i = 0; i < N; i++)
+        {
+            Vector[i] /= Norm;
         }
 
-        // Orthogonalize against previous eigenvectors
-        for (int32 j = 0; j < i; j++)
-        {
-            float DotProduct = 0.0f;
-            for (int32 k = 0; k < N; k++)
-            {
-                DotProduct += Eigenvectors[i][k] * Eigenvectors[j][k];
-            }
-
-            for (int32 k = 0; k < N; k++)
-            {
-                Eigenvectors[i][k] -= DotProduct * Eigenvectors[j][k];
-            }
-        }
-
-        // Power iteration
+        // Степенная итерация
         for (int32 iter = 0; iter < PowerIterations; iter++)
         {
-            // Multiply matrix by vector
             TArray<float> NewVector;
             NewVector.SetNum(N);
-            for (int32 j = 0; j < N; j++) NewVector[j] = 0.0f;
-
-            for (int32 row = 0; row < N; row++)
+            for (int32 i = 0; i < N; i++)
             {
-                for (int32 col = 0; col < N; col++)
-                {
-                    NewVector[row] += Matrix[row][col] * Eigenvectors[i][col];
-                }
-            }
-
-            // Orthogonalize against previous eigenvectors
-            for (int32 j = 0; j < i; j++)
-            {
-                float DotProduct = 0.0f;
-                for (int32 k = 0; k < N; k++)
-                {
-                    DotProduct += NewVector[k] * Eigenvectors[j][k];
-                }
-
-                for (int32 k = 0; k < N; k++)
-                {
-                    NewVector[k] -= DotProduct * Eigenvectors[j][k];
-                }
-            }
-
-            // Normalize
-            float Norm = 0.0f;
-            for (int32 j = 0; j < N; j++)
-            {
-                Norm += FMath::Square(NewVector[j]);
-            }
-
-            Norm = FMath::Sqrt(Norm);
-            if (Norm > 0)
-            {
+                NewVector[i] = 0.0f;
                 for (int32 j = 0; j < N; j++)
                 {
-                    Eigenvectors[i][j] = NewVector[j] / Norm;
+                    NewVector[i] += CurrentMatrix[i][j] * Vector[j];
                 }
+            }
+
+            // Вычисление нормы
+            Norm = 0.0f;
+            for (int32 i = 0; i < N; i++)
+            {
+                Norm += FMath::Square(NewVector[i]);
+            }
+            Norm = FMath::Sqrt(Norm);
+
+            // Проверка сходимости
+            float MaxDiff = 0.0f;
+            for (int32 i = 0; i < N; i++)
+            {
+                float NewVal = (Norm > SMALL_NUMBER) ? NewVector[i] / Norm : 0.0f;
+                MaxDiff = FMath::Max(MaxDiff, FMath::Abs(NewVal - Vector[i]));
+                Vector[i] = NewVal;
+            }
+
+            if (MaxDiff < 0.001f && iter > 10) // Ранняя остановка при сходимости
+            {
+                UE_LOG(LogTemp, Log, TEXT("Eigenvector %d converged after %d iterations, max diff: %f"), k, iter, MaxDiff);
+                break;
+            }
+
+            if (iter == PowerIterations - 1)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Eigenvector %d did not fully converge, max diff: %f"), k, MaxDiff);
+            }
+        }
+
+        // Добавление собственного вектора
+        Eigenvectors.Add(Vector);
+
+        // Дефляция: вычитание проекции для следующего вектора
+        for (int32 i = 0; i < N; i++)
+        {
+            for (int32 j = 0; j < N; j++)
+            {
+                CurrentMatrix[i][j] -= Vector[i] * Vector[j] * Norm;
             }
         }
     }
