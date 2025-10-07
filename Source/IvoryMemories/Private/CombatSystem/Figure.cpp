@@ -14,22 +14,79 @@ AFigure::AFigure()
 
 }
 
-void AFigure::SetCell(ACell* newCell)
+// Called when the game starts or when spawned
+void AFigure::BeginPlay()
 {
-	CurrentCell = newCell;
-	if (newCell) {
-		SetActorLocation(newCell->GetActorLocation() + FVector(0, 0, 10.0f)); // Elevate the figure above the cell
+	Super::BeginPlay();
+	// Additional init if needed
+	if (CurrentCell)
+	{
+		SetActorLocation(CurrentCell->GetActorLocation() + FVector(0.0f, 0.0f, 50.0f)); // Elevate the figure above the cell
 	}
 }
 
+bool AFigure::CanMoveTo(ACell* TargetCell) const
+{
+	if (!TargetCell || TargetCell->State == ECellState::Inactive || !TargetCell->IsEmpty()) {
+		return false; // occupied or inactive cell is not allowed
+	}
 
+	if (CurrentCell) {
+		// Check the distance (Manhattan for a chess-like board)
+		FVector2D Delta = TargetCell->Coordinates - CurrentCell->Coordinates;
+		int32 Distance = FMath::Abs(Delta.X) + FMath::Abs(Delta.Y);
+		return Distance <= MaxMoveDistance && Distance > 0;
+	}
+	return true; // if there is no current cell (default placement)
+}
 
-// Called when the game starts or when spawned
-//void AFigure::BeginPlay()
+void AFigure::MoveToCell(ACell* newCell)
+{
+	if (CanMoveTo(newCell)) {
+		if (CurrentCell) {
+			CurrentCell->RemoveFigure();
+		}
+		SetCell(newCell);
+		newCell->SetFigure(this);
+		SetActorLocation(newCell->GetActorLocation() + FVector(0.0f, 0.0f, 50.0f));
+	}
+}
+
+bool AFigure::CanAttack(AFigure* TargetFigure) const
+{
+	// By default any figure can attack any other figure if it exists and not itself
+	return TargetFigure && TargetFigure != this;
+}
+
+void AFigure::Attack(AFigure* TargetFigure)
+{
+	if (CanAttack(TargetFigure)) {
+		TargetFigure->Destroy();
+		UE_LOG(LogTemp, Warning, TEXT("Figure %s attacked %s"), *FigureName, *TargetFigure->FigureName);
+	}
+}
+
+//void AFigure::SetCell(ACell* newCell)
 //{
-//	Super::BeginPlay();
-//	
+//	CurrentCell = newCell;
+//	FigureName = TEXT("Figure"); // base name must be edited by children
+//	Rank = 0;
+//	MaxMoveDistance = 1;
+//	FigureMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FigureMesh"));
+//	RootComponent = FigureMesh;
+//	// HERE can be set default mesh, but have to be overrided by children
 //}
+
+void AFigure::SetCell(ACell* newCell)
+{
+	CurrentCell = newCell;
+}
+
+void AFigure::GenerateUniqueName(const FString& BaseName, int32 Index)
+{
+	FigureName = FString::Printf(TEXT("%s_%d"), *BaseName, Index);
+}
+
 //
 //// Called every frame
 //void AFigure::Tick(float DeltaTime)

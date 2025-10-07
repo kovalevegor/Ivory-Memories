@@ -41,7 +41,7 @@ void ACell::SetFigure(AFigure* newFigure)
 	if (newFigure && State != ECellState::Inactive) {
 		OccupiedFigure = newFigure;
 		State = ECellState::Occupied;
-		// Bijection: set a reference to a cell in a figure (NewFigure->SetCell(this); - add to Figure)
+		// Bijection: set a reference to a cell in a figure
 		newFigure->SetCell(this);
 	}
 }
@@ -49,7 +49,7 @@ void ACell::SetFigure(AFigure* newFigure)
 void ACell::RemoveFigure()
 {
 	if (OccupiedFigure) { // != nullptr
-		// Bijection: Clear the reference in the figure 
+		// Bijection: clear the reference in the figure 
 		OccupiedFigure->SetCell(nullptr);
 		OccupiedFigure = nullptr;
 	}

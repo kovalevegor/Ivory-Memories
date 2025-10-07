@@ -32,7 +32,7 @@ void ABoard::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 	// update the board in Editor when editing properties
 	ClearBoard();
 	InitializeBoard();
-}
+} 
 
 void ABoard::InitializeBoard()
 {
