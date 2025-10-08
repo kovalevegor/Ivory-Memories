@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h" // UStaticMeshComponent
+#include "Engine/StaticMesh.h" // UStaticMesh
+#include "Materials/MaterialInterface.h" // UMaterialInterface
 #include "Figure.generated.h"
 
 class ACell;
@@ -11,53 +14,63 @@ class ACell;
 UCLASS(Abstract) // cannot be spawned directly on level
 class IVORYMEMORIES_API AFigure : public AActor
 {
-	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
-	AFigure();
+    GENERATED_BODY()
+
+public:
+    // Sets default values for this actor's properties
+    AFigure();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+    // Called when the game starts or when spawned
+    virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	//virtual void Tick(float DeltaTime) override;
+    // Can be edited in Editor
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
-	FString FigureName; // unique name for each figure
+public:
+    // ---PROPERTIES---
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
+    FString FigureName; // unique name for each figure
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
-	ACell* CurrentCell; // cell reference for bijection
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Figure")
+    ACell* CurrentCell; // cell reference for bijection
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
-	int32 Rank;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
+    int32 Rank;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
-	int32 MaxMoveDistance;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Figure")
+    int32 MaxMoveDistance;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class UStaticMeshComponent* FigureMesh;
+    // mesh properties (editable in UE Editor)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
+    UStaticMesh* FigureMeshAsset;
 
-	//------------------------------------------------------------
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
+    UMaterialInterface* FigureMaterial;
 
-	UFUNCTION(BlueprintCallable, Category = "figure")
-	virtual bool CanMoveTo(ACell* TargetCell) const; // Check if figure can move to a cell
+    // Mesh component (not editable but visible)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UStaticMeshComponent* FigureMesh;
 
-	UFUNCTION(BlueprintCallable, Category = "Figure")
-	virtual void MoveToCell(ACell* newCell);
+    // ---FUNCTIONS---
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    virtual bool CanMoveTo(ACell* TargetCell) const; // Check if figure can move to a cell
 
-	UFUNCTION(BlueprintCallable, Category = "Figure")
-	virtual bool CanAttack(AFigure* TargetFigure) const; // Check if figure can attack opponent figure
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    virtual void MoveToCell(ACell* NewCell);
 
-	UFUNCTION(BlueprintCallable, Category = "Figure")
-	virtual void Attack(AFigure* TargetFigure);
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    virtual bool CanAttack(AFigure* TargetFigure) const; // Check if figure can attack opponent figure
 
-	UFUNCTION(BlueprintCallable, Category = "Figure")
-	void GenerateUniqueName(const FString& BaseName, int32 Index); // Generate unique name of a class child
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    virtual void Attack(AFigure* TargetFigure);
 
-	UFUNCTION(BlueprintCallable, Category = "Figure")
-	void SetCell(ACell* newCell); 
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    void GenerateUniqueName(const FString& BaseName, int32 Index); // Generate unique name of a class child
 
+    UFUNCTION(BlueprintCallable, Category = "Figure")
+    void SetCell(ACell* NewCell);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Mesh")
+    void ApplyMeshSettings();
 };

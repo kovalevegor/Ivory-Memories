@@ -40,7 +40,7 @@ void ABoard::InitializeBoard()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // Инициализация массива
+    // Array init
     Cells.SetNum(Width * Height);
 
     float BoardWidth = Width * (CellSize + CellSpacing) - CellSpacing;
@@ -61,20 +61,20 @@ void ABoard::InitializeBoard()
             if (NewCell)
             {
                 NewCell->Coordinates = FVector2D(X, Y);
-                // Шахматная раскраска
+                // Chess-like coloring
                 NewCell->CellColor = ((X + Y) % 2 == 0) ? FColor::White : FColor::Black;
 
-                // Установка масштаба клетки на основе CellSize (предполагаем базовый меш 100x100)
+                // Set cell scale
                 if (NewCell->CellMesh)
                 {
-                    float Scale = CellSize / 100.0f; // Если меш Plane — базовый размер 100
+                    float Scale = CellSize / 100.0f; //Plane mesh hase default scale 100pt
                     NewCell->CellMesh->SetRelativeScale3D(FVector(Scale, Scale, 1.0f));
                 }
 
-                // Прикрепление к доске (опционально)
+                // Attach to the board (optional)
                 NewCell->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 
-                // Сохранение в массив
+                // save the arrays
                 int32 Index = Y * Width + X;
                 Cells[Index] = NewCell;
             }

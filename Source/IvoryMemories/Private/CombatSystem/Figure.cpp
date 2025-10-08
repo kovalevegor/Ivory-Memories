@@ -11,13 +11,20 @@ AFigure::AFigure()
 	//PrimaryActorTick.bCanEverTick = true;
 
 	CurrentCell = nullptr;
+	Rank = 0;
+	MaxMoveDistance = 1;
 
+	FigureMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FigureMesh"));
+	RootComponent = FigureMesh;
+
+	ApplyMeshSettings(); // Default mesh applying (if set in editor)
 }
 
 // Called when the game starts or when spawned
 void AFigure::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyMeshSettings();
 	// Additional init if needed
 	if (CurrentCell)
 	{
@@ -85,6 +92,36 @@ void AFigure::SetCell(ACell* newCell)
 void AFigure::GenerateUniqueName(const FString& BaseName, int32 Index)
 {
 	FigureName = FString::Printf(TEXT("%s_%d"), *BaseName, Index);
+}
+
+void AFigure::ApplyMeshSettings()
+{
+	if (FigureMesh) {
+		if (FigureMeshAsset) {
+			FigureMesh->SetStaticMesh(FigureMeshAsset);
+			UE_LOG(LogTemp, Warning, TEXT("Mesh applied: %s"), *FigureMeshAsset->GetName());
+		}
+		else {
+			FigureMesh->SetStaticMesh(nullptr);
+			UE_LOG(LogTemp, Warning, TEXT("Mesh cleared"));
+		}
+
+		if (FigureMaterial) { FigureMesh->SetMaterial(0, FigureMaterial); }
+	}
+}
+
+// Automatic editing in Editor
+void AFigure::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ?
+		PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AFigure, FigureMeshAsset) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(AFigure, FigureMaterial)) {
+		ApplyMeshSettings();
+	}
 }
 
 //
