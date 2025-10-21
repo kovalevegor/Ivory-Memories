@@ -47,6 +47,10 @@ public:
     // Function to draw debug visualization
     void DrawDebugMST();
 
+    // Function to clear persistent debug lines
+    UFUNCTION(BlueprintCallable, Category = "Minimum Spanning Tree")
+    void ClearDebugMST();
+
     // Edges of the MST
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Minimum Spanning Tree")
     TArray<FDEdge> MSTEdges;
@@ -60,6 +64,10 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Minimum Spanning Tree|Debug")
     float MSTThickness = 5.0f;
+
+    // Use persistent lines for screenshots (e.g., HighResShot)
+    UPROPERTY(EditAnywhere, Category = "Minimum Spanning Tree|Debug")
+    bool bUsePersistentLines = false;
 
     // Probability to add random edges back to MST (for more connected graphs)
     UPROPERTY(EditAnywhere, Category = "Minimum Spanning Tree")

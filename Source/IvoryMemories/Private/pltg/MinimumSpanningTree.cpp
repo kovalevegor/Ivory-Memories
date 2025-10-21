@@ -16,7 +16,6 @@ void AMinimumSpanningTree::BeginPlay()
 void AMinimumSpanningTree::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-
     if (bDrawMST)
     {
         DrawDebugMST();
@@ -26,13 +25,11 @@ void AMinimumSpanningTree::Tick(float DeltaTime)
 void AMinimumSpanningTree::GenerateMST(const TArray<FDEdge>& DelaunayEdges)
 {
     MSTEdges.Empty();
-
     if (DelaunayEdges.Num() < 1)
     {
         UE_LOG(LogTemp, Warning, TEXT("No edges provided for MST generation"));
         return;
     }
-
     // Convert FDEdge to FWeightedEdge and calculate weights
     TArray<FWeightedEdge> WeightedEdges;
     for (const FDEdge& Edge : DelaunayEdges)
@@ -40,22 +37,18 @@ void AMinimumSpanningTree::GenerateMST(const TArray<FDEdge>& DelaunayEdges)
         float Weight = CalculateDistance(Edge.Start, Edge.End);
         WeightedEdges.Add(FWeightedEdge(Edge.Start, Edge.End, Weight));
     }
-
     // Sort edges by weight (Kruskal's algorithm)
     WeightedEdges.Sort([](const FWeightedEdge& A, const FWeightedEdge& B) {
         return A.Weight < B.Weight;
         });
-
     // Initialize DSU
     DisjointSetUnion DSU;
-
     // Add all points to DSU
     for (const FWeightedEdge& Edge : WeightedEdges)
     {
         DSU.MakeSet(Edge.Start);
         DSU.MakeSet(Edge.End);
     }
-
     // Build MST
     for (const FWeightedEdge& Edge : WeightedEdges)
     {
@@ -65,13 +58,11 @@ void AMinimumSpanningTree::GenerateMST(const TArray<FDEdge>& DelaunayEdges)
             DSU.Unite(Edge.Start, Edge.End);
         }
     }
-
     // Optionally add some random edges back for more connectivity
     if (RandomEdgeProbability > 0.0f)
     {
         MSTEdges = AddRandomEdges(MSTEdges, DelaunayEdges, RandomEdgeProbability);
     }
-
     UE_LOG(LogTemp, Log, TEXT("Generated MST with %d edges"), MSTEdges.Num());
 }
 
@@ -79,13 +70,21 @@ void AMinimumSpanningTree::DrawDebugMST()
 {
     UWorld* World = GetWorld();
     if (!World) return;
-
     for (const FDEdge& Edge : MSTEdges)
     {
         FVector Start(Edge.Start.X, Edge.Start.Y, 10.0f); // Slightly above the triangulation
         FVector End(Edge.End.X, Edge.End.Y, 10.0f);
+        // Use persistent lines only when bUsePersistentLines is true
+        DrawDebugLine(World, Start, End, MSTColor, bUsePersistentLines, -1.0f, 0, MSTThickness);
+    }
+}
 
-        DrawDebugLine(World, Start, End, MSTColor, false, -1, 0, MSTThickness);
+void AMinimumSpanningTree::ClearDebugMST()
+{
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        FlushPersistentDebugLines(World);
     }
 }
 
@@ -97,12 +96,10 @@ float AMinimumSpanningTree::CalculateDistance(const FVector2D& A, const FVector2
 TArray<FDEdge> AMinimumSpanningTree::AddRandomEdges(const TArray<FDEdge>& InMSTEdges, const TArray<FDEdge>& AllEdges, float Probability)
 {
     TArray<FDEdge> Result = InMSTEdges;
-
     if (AllEdges.Num() == 0 || Probability <= 0.0f)
     {
         return Result;
     }
-
     // Create a set of MST edges for fast lookup
     TSet<FDEdge> MSTEdgeSet;
     for (const FDEdge& Edge : InMSTEdges)
@@ -111,7 +108,6 @@ TArray<FDEdge> AMinimumSpanningTree::AddRandomEdges(const TArray<FDEdge>& InMSTE
         // Also add the reverse edge since edges are undirected
         MSTEdgeSet.Add(FDEdge(Edge.End, Edge.Start));
     }
-
     // Calculate average edge length
     float TotalLength = 0.0f;
     for (const FDEdge& Edge : AllEdges)
@@ -120,10 +116,8 @@ TArray<FDEdge> AMinimumSpanningTree::AddRandomEdges(const TArray<FDEdge>& InMSTE
     }
     float AverageLength = TotalLength / AllEdges.Num();
     float MaxAllowedLength = AverageLength * 1.2f; // Allow edges up to 20% longer than average
-
     // Random number generator
     FRandomStream RandomStream(FDateTime::Now().GetTicks());
-
     // Add random edges with probability
     for (const FDEdge& Edge : AllEdges)
     {
@@ -132,12 +126,10 @@ TArray<FDEdge> AMinimumSpanningTree::AddRandomEdges(const TArray<FDEdge>& InMSTE
         {
             continue;
         }
-
         // Check if we should add this edge based on probability
         if (RandomStream.FRand() < Probability)
         {
             float EdgeLength = CalculateDistance(Edge.Start, Edge.End);
-
             // Only add edges that aren't too long
             if (EdgeLength <= MaxAllowedLength)
             {
@@ -145,7 +137,6 @@ TArray<FDEdge> AMinimumSpanningTree::AddRandomEdges(const TArray<FDEdge>& InMSTE
             }
         }
     }
-
     return Result;
 }
 
@@ -169,9 +160,7 @@ void AMinimumSpanningTree::DisjointSetUnion::Unite(const FVector2D& A, const FVe
 {
     FVector2D RootA = Find(A);
     FVector2D RootB = Find(B);
-
     if (RootA == RootB) return;
-
     if (Rank[RootA] < Rank[RootB])
     {
         Parent[RootA] = RootB;

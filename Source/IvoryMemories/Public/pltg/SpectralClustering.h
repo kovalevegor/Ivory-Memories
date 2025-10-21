@@ -37,7 +37,7 @@ public:
     int32 NumberOfClusters = 5;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering", meta = (ClampMin = "0.1", ClampMax = "5.0"))
-    float SigmaCoefficient = 2.5f;
+    float SigmaCoefficient = 5.0f;
 
     UPROPERTY(EditAnywhere, Category = "Spectral Clustering")
     TArray<FLinearColor> ClusterColors;
@@ -65,15 +65,15 @@ private:
     TArray<FVector2D> ClusteredVertices;
     bool bNeedToDrawClusters;
 
-    // Матричные операции
+    // Matrix operatios
     TArray<TArray<float>> BuildSimilarityMatrixFromEdges(const TArray<FVector2D>& Vertices, const TArray<FDEdge>& Edges);
     TArray<TArray<float>> BuildDegreeMatrix(const TArray<TArray<float>>& SimilarityMatrix);
     TArray<TArray<float>> BuildNormalizedLaplacian(const TArray<TArray<float>>& SimilarityMatrix, const TArray<TArray<float>>& DegreeMatrix);
 
-    // Вычисление собственных векторов методом степенной итерации
+    // Calculating natural vectors using power iteration
     void ComputeTopEigenvectors(const TArray<TArray<float>>& Matrix, int32 NumEigenvectors, TArray<TArray<float>>& Eigenvectors);
 
-    // K-средних для кластеризации
+    // K-means
     TArray<int32> KMeansClustering(const TArray<TArray<float>>& Data, int32 k, int32 NumRuns);
 
     int32 FindVertexIndex(const TArray<FVector2D>& Vertices, const FVector2D& Target, float Tolerance = 0.01f)
